@@ -1,10 +1,14 @@
 #! /usr/bin/python
 # -*- coding=utf-8 -*-
 
-FALLBACK_COMMAND = "metacity"
+import os, sys, gettext
+
+if os.path.exists("/usr/bin/marco"):
+    FALLBACK_COMMAND = "marco"
+else:
+    FALLBACK_COMMAND = "metacity"
 FALLBACK_ARGS = ("--replace",)
 
-import os, sys, gettext
 from gi.repository import Gtk
 
 gettext.install("cinnamon", "/usr/share/locale")
@@ -31,6 +35,8 @@ if __name__ == "__main__":
                 elif os.path.exists("/usr/bin/tint2"):
                     os.system("killall tint2")
                     os.system("tint2 &")
+                elif os.path.exists("/usr/bin/mate-panel"):
+                    os.system("mate-panel --replace &")
                 os.execvp(FALLBACK_COMMAND, (FALLBACK_COMMAND,) + FALLBACK_ARGS)
             else:
                 if confirm_restart():
