@@ -95,7 +95,7 @@ Depends: cinnamon-common (= ${source:Version}),
          python-lxml,
          gkbd-capplet,
          python-pyinotify,
-         metacity | marco,
+         marco | metacity,
          mate-panel | gnome-panel | tint2
 Recommends: gnome-themes-standard, gnome-terminal, cinnamon-bluetooth
 Provides: notification-daemon, x-window-manager

@@ -1,4 +1,4 @@
-cinnamon (2.4.6+utopia1) UNRELEASED; urgency=medium
+cinnamon (2.4.6+utopia2) unstable; urgency=medium
 
   * Rebuild on Debian Jessie.
   * cinnamon-launcher: add marco and mate-panel as alternatives to fallback
