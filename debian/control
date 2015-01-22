@@ -2,7 +2,8 @@ Source: cinnamon
 Section: gnome
 Priority: optional
 Maintainer: Linux Mint <root@linuxmint.com>
-Build-Depends: debhelper (>= 8),
+Uploaders: James Lu <glolol@overdrive.pw>
+Build-Depends: debhelper (>= 9),
                dh-autoreconf,
                python-dev,
                gnome-pkg-tools (>= 0.11),
