@@ -9,6 +9,8 @@ const Main = imports.ui.main;
 const AppletManager = imports.ui.appletManager;
 const DeskletManager = imports.ui.deskletManager;
 const ExtensionSystem = imports.ui.extensionSystem;
+const SearchProviderManager = imports.ui.searchProviderManager;
+const Util = imports.misc.util;
 
 const CinnamonIface =
     '<node> \
@@ -76,6 +78,10 @@ const CinnamonIface =
                 <arg type="b" direction="out" /> \
                 <arg type="s" direction="out" /> \
             </signal> \
+            <method name="PushSubprocessResult"> \
+                <arg type="i" direction="in" name="process_id" /> \
+                <arg type="s" direction="in" name="result" /> \
+            </method> \
         </interface> \
     </node>';
 
@@ -306,6 +312,14 @@ Cinnamon.prototype = {
     ShowExpo: function() {
         if (!Main.expo.animationInProgress)
             Main.expo.toggle();
+    },
+    
+    PushSubprocessResult: function(process_id, result)
+    {
+        if (Util.subprocess_callbacks[process_id])
+        {
+            Util.subprocess_callbacks[process_id](result);
+        }
     },
 
     CinnamonVersion: Config.PACKAGE_VERSION
