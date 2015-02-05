@@ -1,3 +1,11 @@
+cinnamon (2.4.6+zgit20150204+utopia1) unstable; urgency=low
+
+  * Merge upstream Git master as of 6032c91 (04 Feb 2015).
+  * Remaining changes:
+    - Fixes for System Info applet.
+
+ -- James Lu <glolol@overdrive.pw>  Wed, 04 Feb 2015 17:53:15 -0800
+
 cinnamon (2.4.6+utopia3) unstable; urgency=medium
 
   * debian/control: Bump Conflicts in cinnamon-common to prevent
