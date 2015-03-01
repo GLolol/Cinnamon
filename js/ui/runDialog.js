@@ -206,7 +206,7 @@ __proto__: ModalDialog.ModalDialog.prototype,
 
                                    // rt is short for "reload theme"
                                    'rt': Lang.bind(this, function() {
-                                       Main.loadTheme();
+                                       Main.themeManager._changeTheme();
                                    })
                                  };
 
@@ -218,6 +218,8 @@ __proto__: ModalDialog.ModalDialog.prototype,
 
         let entry = new St.Entry({ style_class: 'run-dialog-entry' });
         CinnamonEntry.addContextMenu(entry);
+
+        entry.label_actor = label;
 
         this._entryText = entry.clutter_text;
         this.contentLayout.add(entry, { y_align: St.Align.START });

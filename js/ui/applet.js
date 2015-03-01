@@ -143,6 +143,7 @@ AppletPopupMenu.prototype = {
         PopupMenu.PopupMenu.prototype._init.call(this, launcher.actor, 0.0, orientation, 0);
         Main.uiGroup.add_actor(this.actor);
         this.actor.hide();
+        this.launcher = launcher;
         if (launcher instanceof Applet)
             launcher.connect("orientation-changed", Lang.bind(this, this._onOrientationChanged));
         else if (launcher._applet)
@@ -157,9 +158,25 @@ AppletPopupMenu.prototype = {
      * too many children
      */
     setMaxHeight: function() {
-        let monitor = Main.layoutManager.primaryMonitor;
-        let maxHeight = Math.round(monitor.height - Main.panel.actor.height - this.actor.get_theme_node().get_length('-boxpointer-gap'));
-        if (Main.panel2!==null) maxHeight -= Main.panel2.actor.height;
+        let [x, y] = this.launcher.actor.get_transformed_position();
+
+        let i = 0;
+        let monitor;
+        for (; i < global.screen.get_n_monitors(); i++) {
+            monitor = global.screen.get_monitor_geometry(i);
+            if (x >= monitor.x && x < monitor.x + monitor.width &&
+                x >= monitor.y && y < monitor.y + monitor.height) {
+                break;
+            }
+        }
+
+        let maxHeight = monitor.height - this.actor.get_theme_node().get_length('-boxpointer-gap');
+
+        let panels = Main.panelManager.getPanelsInMonitor(i);
+        for (let j in panels) {
+            maxHeight -= panels[j].actor.height;
+        }
+
         this.actor.style = ('max-height: ' + maxHeight / global.ui_scale + 'px;');
     },
 
@@ -223,9 +240,19 @@ Applet.prototype = {
     	this._draggable.connect('drag-cancelled', Lang.bind(this, this._onDragCancelled));
         this._draggable.connect('drag-end', Lang.bind(this, this._onDragEnd));        
 
-        this._scaleMode = false;
+        try {
+            this._scaleMode = AppletManager.enabledAppletDefinitions.idMap[instance_id].panel.scaleMode;
+        } catch (e) {
+            // Sometimes applets are naughty and don't pass us our instance_id. In that case, we just find the first non-empty panel and pretend we are on it.
+            for (let i in Main.panelManager.panels) {
+                this._scaleMode = true;
+                if (Main.panelManager.panels[i]) {
+                    this._scaleMode = Main.panelManager.panels[i].scaleMode;
+                }
+            }
+        }
         this._applet_tooltip_text = "";
-        this._scaleMode = global.settings.get_boolean('panel-scale-text-icons') && global.settings.get_boolean('panel-resizable');
+
         this.context_menu_item_remove = null;
         this.context_menu_separator = null;
 
@@ -315,6 +342,21 @@ Applet.prototype = {
         // Implemented by Applets        
     },
 
+
+    /**
+     * on_applet_instances_changed:
+     *
+     * This function is called when an applet _of the same uuid_
+     * is added or removed from the panels.  It is intended to
+     * assist in delegation of responsibilities between duplicate
+     * applet instances.
+     * 
+     * This is meant to be overridden in individual applets
+     */
+    on_applet_instances_changed: function() {
+
+    },
+
     on_applet_added_to_panel_internal: function(userEnabled) {
         if (userEnabled) {
             Mainloop.timeout_add(300, Lang.bind(this, function() {
@@ -327,6 +369,8 @@ Applet.prototype = {
         }
 
         this.on_applet_added_to_panel(userEnabled);
+
+        Main.AppletManager.callAppletInstancesChanged(this._uuid);
     },
 
     /**
@@ -353,6 +397,8 @@ Applet.prototype = {
     _onAppletRemovedFromPanel: function() {
         global.settings.disconnect(this._panelEditModeChangedId);
         this.on_applet_removed_from_panel();
+
+        Main.AppletManager.callAppletInstancesChanged(this._uuid);
     },
 
     /**
@@ -414,6 +460,7 @@ Applet.prototype = {
         if (panel_height && panel_height > 0) {
             this._panelHeight = panel_height;
         }
+        this._scaleMode = AppletManager.enabledAppletDefinitions.idMap[this.instance_id].panel.scaleMode;
         this.on_panel_height_changed();
     },
     
@@ -470,7 +517,7 @@ Applet.prototype = {
 
     openAbout: function() {
         new ModalDialog.SpicesAboutDialog(this._meta, "applets");
-    }
+    },
 };
 Signals.addSignalMethods(Applet.prototype);
 
@@ -542,7 +589,7 @@ IconApplet.prototype = {
             let height = (this._panelHeight / DEFAULT_PANEL_HEIGHT) * PANEL_SYMBOLIC_ICON_DEFAULT_HEIGHT / global.ui_scale;
             this._applet_icon = new St.Icon({icon_name: icon_name, icon_size: height, icon_type: St.IconType.SYMBOLIC, reactive: true, track_hover: true, style_class: 'system-status-icon' });
         } else {
-            this._applet_icon = new St.Icon({icon_name: icon_name, icon_size: PANEL_SYMBOLIC_ICON_DEFAULT_HEIGHT, icon_type: St.IconType.SYMBOLIC, reactive: true, track_hover: true, style_class: 'system-status-icon' });
+            this._applet_icon = new St.Icon({icon_name: icon_name, icon_type: St.IconType.SYMBOLIC, reactive: true, track_hover: true, style_class: 'system-status-icon' });
         }
         this._applet_icon_box.child = this._applet_icon;
         this.__icon_type = St.IconType.SYMBOLIC;
@@ -594,7 +641,7 @@ IconApplet.prototype = {
                 this._applet_icon = new St.Icon({gicon: gicon, icon_size: height,
                                                 icon_type: St.IconType.SYMBOLIC, reactive: true, track_hover: true, style_class: 'system-status-icon' });
             } else {
-                this._applet_icon = new St.Icon({gicon: gicon, icon_size: PANEL_SYMBOLIC_ICON_DEFAULT_HEIGHT, icon_type: St.IconType.SYMBOLIC, reactive: true, track_hover: true, style_class: 'system-status-icon' });
+                this._applet_icon = new St.Icon({gicon: gicon, icon_type: St.IconType.SYMBOLIC, reactive: true, track_hover: true, style_class: 'system-status-icon' });
             }
             this._applet_icon_box.child = this._applet_icon;
         }
@@ -603,7 +650,7 @@ IconApplet.prototype = {
     },
 
     on_panel_height_changed: function() {
-        this._scaleMode = global.settings.get_boolean('panel-scale-text-icons') && global.settings.get_boolean('panel-resizable');
+        this._scaleMode = AppletManager.enabledAppletDefinitions.idMap[this.instance_id].panel.scaleMode;
         if (this._applet_icon_box.child) {
             this._applet_icon_box.child.destroy();
         }
@@ -648,7 +695,8 @@ TextApplet.prototype = {
         Applet.prototype._init.call(this, orientation, panel_height, instance_id);
         this._applet_label = new St.Label({ reactive: true, track_hover: true, style_class: 'applet-label'});
         this._applet_label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
-        this.actor.add(this._applet_label, { y_align: St.Align.MIDDLE, y_fill: false });    
+        this.actor.add(this._applet_label, { y_align: St.Align.MIDDLE, y_fill: false });
+        this.actor.set_label_actor(this._applet_label);
     },
 
     /**
@@ -692,6 +740,7 @@ TextIconApplet.prototype = {
         this._applet_label = new St.Label({ reactive: true, track_hover: true, style_class: 'applet-label'});
         this._applet_label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         this.actor.add(this._applet_label, { y_align: St.Align.MIDDLE, y_fill: false });
+        this.actor.set_label_actor(this._applet_label);
     },
 
     /**

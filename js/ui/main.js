@@ -57,6 +57,7 @@ const DeskletManager = imports.ui.deskletManager;
 const ExtensionSystem = imports.ui.extensionSystem;
 const Keyboard = imports.ui.keyboard;
 const MessageTray = imports.ui.messageTray;
+const OsdWindow = imports.ui.osdWindow;
 const Overview = imports.ui.overview;
 const Expo = imports.ui.expo;
 const Panel = imports.ui.panel;
@@ -68,7 +69,6 @@ const NotificationDaemon = imports.ui.notificationDaemon;
 const WindowAttentionHandler = imports.ui.windowAttentionHandler;
 const Scripting = imports.ui.scripting;
 const CinnamonDBus = imports.ui.cinnamonDBus;
-const LookingGlassDBus = imports.ui.lookingGlassDBus;
 const WindowManager = imports.ui.windowManager;
 const ThemeManager = imports.ui.themeManager;
 const Magnifier = imports.ui.magnifier;
@@ -89,24 +89,22 @@ const LAYOUT_CLASSIC = "classic";
 const CIN_LOG_FOLDER = GLib.get_home_dir() + '/.cinnamon/';
 
 let panel = null;
-let panel2 = null;
-
 let soundManager = null;
 let backgroundManager = null;
 let slideshowManager = null;
 let placesManager = null;
+let panelManager = null;
+let osdWindow = null;
 let overview = null;
 let expo = null;
 let runDialog = null;
 let lookingGlass = null;
-let gtkLookingGlass = null;
 let wm = null;
 let messageTray = null;
 let notificationDaemon = null;
 let windowAttentionHandler = null;
 let recorder = null;
 let cinnamonDBusService = null;
-let lookingGlassDBusService = null;
 let modalCount = 0;
 let modalActorFocusStack = [];
 let uiGroup = null;
@@ -131,8 +129,7 @@ let workspace_names = [];
 
 let background = null;
 
-let desktop_layout;
-let applet_side = St.Side.BOTTOM;
+let applet_side = St.Side.TOP; // Kept to maintain compatibility. Doesn't seem to be used anywhere
 let deskletContainer = null;
 
 let software_rendering = false;
@@ -249,7 +246,6 @@ function start() {
     Gio.DesktopAppInfo.set_desktop_env('X-Cinnamon');
 
     cinnamonDBusService = new CinnamonDBus.Cinnamon();
-    lookingGlassDBusService = new LookingGlassDBus.CinnamonLookingGlass();
 
     // Ensure CinnamonWindowTracker and CinnamonAppUsage are initialized; this will
     // also initialize CinnamonAppSystem first.  CinnamonAppSystem
@@ -267,14 +263,6 @@ function start() {
     // actor so set it anyways.
     global.stage.color = DEFAULT_BACKGROUND_COLOR;
     global.stage.no_clear_hint = true;
-    
-    desktop_layout = global.settings.get_string("desktop-layout"); 
-    if (desktop_layout == LAYOUT_FLIPPED) {
-        applet_side = St.Side.TOP;        
-    }
-    else if (desktop_layout == LAYOUT_CLASSIC) {
-        applet_side = St.Side.TOP;        
-    }
     
     Gtk.IconTheme.get_default().append_search_path("/usr/share/cinnamon/icons/");
     _defaultCssStylesheet = global.datadir + '/theme/cinnamon.css';    
@@ -331,6 +319,10 @@ function start() {
 
     layoutManager = new Layout.LayoutManager();
 
+    Panel.checkPanelUpgrade();
+
+    panelManager = new Panel.PanelManager();
+
     let startupAnimationEnabled = global.settings.get_boolean("startup-animation");
     let desktopEffectsEnabled = global.settings.get_boolean("desktop-effects");
 
@@ -348,31 +340,13 @@ function start() {
         layoutManager.primaryMonitor.y + layoutManager.primaryMonitor.height/2);
 
     xdndHandler = new XdndHandler.XdndHandler();
+    osdWindow = new OsdWindow.OsdWindow();
     // This overview object is just a stub for non-user sessions
     overview = new Overview.Overview();
     expo = new Expo.Expo();
 
     statusIconDispatcher = new StatusIconDispatcher.StatusIconDispatcher();  
-                    
-    if (desktop_layout == LAYOUT_TRADITIONAL) {
-        panel = new Panel.Panel(true, true);
-        panel.actor.add_style_class_name('panel-bottom');
-        layoutManager.panelBox.add(panel.actor);
-    }
-    else if (desktop_layout == LAYOUT_FLIPPED) {
-        panel = new Panel.Panel(false, true);
-        panel.actor.add_style_class_name('panel-top');
-        layoutManager.panelBox.add(panel.actor);
-    }
-    else {
-        desktop_layout == LAYOUT_CLASSIC;
-        panel = new Panel.Panel(false, true);
-        panel2 = new Panel.Panel(true, false);
-        panel.actor.add_style_class_name('panel-top');
-        panel2.actor.add_style_class_name('panel-bottom');
-        layoutManager.panelBox.add(panel.actor);   
-        layoutManager.panelBox2.add(panel2.actor);   
-    }
+
     layoutManager._updateBoxes();
     
     wm = new WindowManager.WindowManager();
@@ -401,7 +375,6 @@ function start() {
     expo.init();
 
     _initUserSession();
-    statusIconDispatcher.start(panel.actor);
 
     // Provide the bus object for gnome-session to
     // initiate logouts.
@@ -487,25 +460,6 @@ function notifyXletStartupError() {
                   _("You can disable the offending extension(s) in Cinnamon Settings to prevent this message from recurring.  ") +
                   _("Please contact the developer."), icon);
 
-}
-
-function enablePanels() {
-    if (panel) panel.enable();
-    if (panel2) panel2.enable();
-}
-
-function disablePanels() {
-    if (panel) panel.disable();
-    if (panel2) panel2.disable();
-}
-
-function getPanels() {
-    let panels = [];
-    if(panel)
-        panels.push(panel);
-    if(panel2)
-        panels.push(panel2);
-    return panels;
 }
 
 let _workspaces = [];
@@ -936,8 +890,8 @@ function _log(category, msg) {
                          category: category,
                          message: text };
     _errorLogStack.push(out);
-    if(lookingGlassDBusService)
-        lookingGlassDBusService.emitLogUpdate();
+    if (lookingGlass)
+        lookingGlass.emitLogUpdate();
     if (can_log) lg_log_file.write(renderLogLine(out), null);
 }
 
@@ -1329,25 +1283,11 @@ function popModal(actor, timestamp) {
  *
  * Returns (LookingGlass.LookingGlass): looking glass object
  */
-function createLegacyLookingGlass() {
+function createLookingGlass() {
     if (lookingGlass == null) {
-        lookingGlass = new LookingGlass.LookingGlass();
+        lookingGlass = new LookingGlass.Melange();
     }
     return lookingGlass;
-}
-
-/**
- * createLookingGlass:
- *
- * Obtains the looking glass object. Create if it does not exist
- *
- * Returns (LookingGlass.LookingGlass): looking glass object
- */
-function createLookingGlass() {
-    if (gtkLookingGlass == null) {
-        gtkLookingGlass = new LookingGlass.Melange();
-    }
-    return gtkLookingGlass;
 }
 
 /**

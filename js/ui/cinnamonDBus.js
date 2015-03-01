@@ -40,6 +40,9 @@ const CinnamonIface =
                 <arg type="b" direction="in" name="flash"/> \
                 <arg type="s" direction="in" name="filename"/> \
             </method> \
+            <method name="ShowOSD"> \
+                <arg type="a{sv}" direction="in" name="params"/> \
+            </method> \
             <method name="FlashArea"> \
                 <arg type="i" direction="in" name="x"/> \
                 <arg type="i" direction="in" name="y"/> \
@@ -49,6 +52,14 @@ const CinnamonIface =
             <method name="highlightApplet"> \
                 <arg type="s" direction="in" /> \
                 <arg type="b" direction="in" /> \
+            </method> \
+            <method name="highlightPanel"> \
+                <arg type="i" direction="in" /> \
+                <arg type="b" direction="in" /> \
+            </method> \
+            <method name="addPanelQuery"> \
+            </method> \
+            <method name="destroyDummyPanels"> \
             </method> \
             <method name="activateCallback"> \
                 <arg type="s" direction="in" /> \
@@ -197,6 +208,20 @@ Cinnamon.prototype = {
                                     flash, invocation));
     },
 
+    ShowOSD: function(params) {
+        for (let param in params)
+            params[param] = params[param].deep_unpack();
+
+        let icon = null;
+        if (params['icon'])
+            icon = Gio.Icon.new_for_string(params['icon']);
+
+        Main.osdWindow.setIcon(icon);
+        Main.osdWindow.setLevel(params['level']);
+        if (params)
+            Main.osdWindow.show();
+    },
+
     FlashArea: function(x, y, width, height) {
         let flashspot = new Flashspot.Flashspot({ x : x, y : y, width: width, height: height});
         flashspot.fire();
@@ -266,6 +291,19 @@ Cinnamon.prototype = {
             let [w, h] = actor.get_transformed_size();
             this.FlashArea(x, y, w, h)
         }
+    },
+
+    highlightPanel: function(id, highlight) {
+        if (Main.panelManager.panels[id])
+            Main.panelManager.panels[id].highlight(highlight);
+    },
+
+    addPanelQuery: function() {
+        Main.panelManager.addPanelQuery();
+    },
+
+    destroyDummyPanels: function() {
+        Main.panelManager._destroyDummyPanels();
     },
 
     activateCallback: function(callback, id, id_is_instance) {

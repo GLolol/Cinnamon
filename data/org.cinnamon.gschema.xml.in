@@ -72,88 +72,72 @@
       <_description>If desklet-snap is enabled, the possible positions of desklets will be all integer multiples of the value of "desklet-snap-size"</_description>
     </key>
 
-    <key name="panel-autohide" type="b">
-      <default>false</default>
+    <key name="panels-enabled" type="as">
+      <default>['1:0:bottom']</default>
+      <_summary>List of panels used</_summary>
+      <_description>
+        Panels are listed in the following format: panelID:monitor:position, where monitor is the monitor number (0 for primary), and position is either top or bottom
+      </_description>
+    </key>
+
+    <key name="panels-autohide" type="as">
+      <default>['1:false']</default>
       <_summary>Auto-hide panel</_summary>
       <_description>
         Whether the panel autohides or not.
       </_description>
     </key>
     
-    <key type="i" name="panel-show-delay">
-      <default>0</default>
+    <key name="panels-show-delay" type="as">
+      <default>['1:0']</default>
       <summary>Duration of the delay before a hidden panel is shown</summary>
       <description>Duration of the delay (in milliseconds)</description>
     </key>
     
-    <key type="i" name="panel-hide-delay">
-      <default>0</default>
+    <key name="panels-hide-delay" type="as">
+      <default>['1:0']</default>
       <summary>Duration of the delay before a shown panel is hidden</summary>
       <description>Duration of the delay (in milliseconds)</description>
     </key>
 
-    <key name="panel2-autohide" type="b">
-      <default>false</default>
-      <_summary>Auto-hide panel</_summary>
-      <_description>
-        Whether the panel autohides or not.
-      </_description>
-    </key>
-
-    <key type="i" name="panel2-show-delay">
-      <default>0</default>
-      <summary>Duration of the delay before a hidden panel is shown</summary>
-      <description>Duration of the delay (in milliseconds)</description>
-    </key>
-
-    <key type="i" name="panel2-hide-delay">
-      <default>0</default>
-      <summary>Duration of the delay before a shown panel is hidden</summary>
-      <description>Duration of the delay (in milliseconds)</description>
-    </key>
-
-    <key name="panel-resizable" type="b">
-      <default>false</default>
+    <key name="panels-resizable" type="as">
+      <default>['1:false']</default>
       <_summary>Resizable panel</_summary>
       <_description>
         Whether the panel uses a user-defined height
       </_description>
     </key>
     
-    <key name="panel-top-height" type="i">
-      <default>25</default>
-      <range min="20" max="100" />
+    <key name="panels-height" type="as">
+      <default>['1:25']</default>
       <_summary>Panel size</_summary>
       <_description>
-        User-defined panel-height for top panel.  Note, this value may or may not be the true value in use at runtime, depending
+        User-defined panel-height for panels.  Note, this value may or may not be the true value in use at runtime, depending
         on any scaling that may be occurring (on hidpi screens, for instance).
       </_description>
     </key>
 
-    <key name="panel-bottom-height" type="i">
-      <default>25</default>
-      <range min="20" max="100"/>
-      <_summary>Panel size</_summary>
-      <_description>
-        User-defined panel-height for bottom panel.  Note, this value may or may not be the true value in use at runtime, depending
-        on any scaling that may be occurring (on hidpi screens, for instance).
-      </_description>
-    </key>
-    
-    <key name="panel-scale-text-icons" type="b">
-      <default>false</default>
+    <key name="panels-scale-text-icons" type="as">
+      <default>['1:false']</default>
       <_summary>Scale panel applet text and icons</_summary>
       <_description>
         Whether the panel icons and text from applets is resized according to the custom panel height
       </_description>
     </key>
 
-    <key name="dnd-drag-threshold" type="i">
-      <default>8</default>
-      <range min="1" max="200" />
-      <_summary>DND drag threshold</_summary>
+    <key name="panel-resizable" type="b">
+      <default>false</default>
+      <_summary>(Deprecated) Resizable panel</_summary>
       <_description>
-        Amount of motion to ignore before registering a drag-and-drop intent on panel objects
+        (Deprecated) Retained to avoid applets who read the property from crashing Cinnamon
+      </_description>
+    </key>
+
+    <key name="panel-scale-text-icons" type="b">
+      <default>false</default>
+      <_summary>(Deprecated) Scale panel applet text and icons</_summary>
+      <_description>
+        (Deprecated) Retained to avoid applets who read the property from crashing Cinnamon
       </_description>
     </key>
 
@@ -327,10 +311,10 @@
     </key>
 
     <key name="desktop-layout" type="s">
-      <default>"traditional"</default>
-      <_summary>Layout style</_summary>
+      <default>""</default>
+      <_summary>(Deprecated) Layout style</_summary>
       <_description>
-       Layout styles: traditional (1 panel at the bottom), flipped (1 panel on top), classic (1 panel on top, 1 panel at the bottom)
+       (Deprecated) Layout styles - pre-2.6
       </_description>
     </key>
     
@@ -464,6 +448,11 @@
       <_summary></_summary>
     </key>
 
+    <key name="no-adjacent-panel-barriers" type="b">
+      <default>false</default>
+      <_summary>Whether to omit pointer barriers between adjacent panels.</_summary>
+    </key>
+
     <key type="b" name="panel-edit-mode">
       <default>false</default>
       <_summary>Panel edit mode</_summary>
@@ -555,6 +544,15 @@
       <default>true</default>
       <_summary>Whether or not to show possible completions in the run dialog (Alt-F2)</_summary>
     </key>
+    
+    <key type="s" name="show-media-keys-osd">
+      <default>"medium"</default>
+      <_summary>Whether the media keys osd is disabled or its relative display size</_summary>
+      <_description>
+      Allows setting of the default size of the media keys osd or disables it completely.
+      Possible values are "small", "medium", "large", or "disabled".
+      </_description>
+    </key>
 
     <child name="theme" schema="org.cinnamon.theme"/>   
     <child name="recorder" schema="org.cinnamon.recorder"/>
@@ -575,6 +573,14 @@
       <_summary>Prevent the tile/snap OSD from showing</_summary>
       <_description>
         Hide the snap OSD.
+      </_description>
+    </key>
+
+    <key name="hide-tile-hud" type="b">
+      <default>false</default>
+      <_summary>Prevent the tile HUD from showing</_summary>
+      <_description>
+        Hide the tile HUD.
       </_description>
     </key>
 

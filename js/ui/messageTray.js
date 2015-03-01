@@ -4,6 +4,7 @@ const Clutter = imports.gi.Clutter;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 const Gtk = imports.gi.Gtk;
+const Atk = imports.gi.Atk;
 const Lang = imports.lang;
 const Mainloop = imports.mainloop;
 const Meta = imports.gi.Meta;
@@ -455,7 +456,7 @@ Notification.prototype = {
                 this.destroy(reason);
             }));
 
-        this.actor = new St.Button();
+        this.actor = new St.Button({ accessible_role: Atk.Role.NOTIFICATION });
         this.actor._delegate = this;
         this.actor._parent_container = null;
         this.actor.connect('clicked', Lang.bind(this, this._onClicked));
@@ -1665,8 +1666,14 @@ MessageTray.prototype = {
                                                                  Lang.bind(this, this._escapeTray));
         this._notificationBin.child = this._notification.actor;
         this._notificationBin.opacity = 0;        
+
         let monitor = Main.layoutManager.primaryMonitor;
-        this._notificationBin.y = monitor.y + (Main.panel.actor.get_height()+5) * 2; // Notifications appear from here (for the animation)
+        let panel = Main.panelManager.getPanel(0, false); // We only want the top panel in monitor 0
+        let height = 5;
+        if (panel)
+            height += panel.actor.get_height();
+        this._notificationBin.y = monitor.y + height * 2; // Notifications appear from here (for the animation)
+
         let margin = this._notification._table.get_theme_node().get_length('margin-from-right-edge-of-screen');                
         this._notificationBin.x = monitor.x + monitor.width - this._notification._table.width - margin;
         this._notificationBin.show();
@@ -1712,8 +1719,13 @@ MessageTray.prototype = {
                             onCompleteScope: this
                           };
         let monitor = Main.layoutManager.primaryMonitor;
+        let panel = Main.panelManager.getPanel(0, false); // We only want the top panel in monitor 0
+        let height = 5;
+        if (panel)
+            height += panel.actor.get_height();
+
         if (!this._notification.expanded)        	 
-            tweenParams.y = monitor.y + (Main.panel.actor.get_height()+5);
+            tweenParams.y = monitor.y + height;
 
         this._tween(this._notificationBin, '_notificationState', State.SHOWN, tweenParams);
    },
@@ -1812,7 +1824,11 @@ MessageTray.prototype = {
         // just make sure it's not covering the top panel if there is one.
         
         let monitor = Main.layoutManager.primaryMonitor;
-        let newY = monitor.y + (Main.panel.actor.get_height()+5);
+        let panel = Main.panelManager.getPanel(0, false); // We only want the top panel in monitor 0
+        let height = 5;
+        if (panel)
+            height += panel.actor.get_height();
+        let newY = monitor.y + height;
 
         if (this._notificationBin.y < expandedY)
             this._notificationBin.y = expandedY;

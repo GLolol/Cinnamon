@@ -218,6 +218,15 @@ StScrollBar StButton#vhandle:hover {
 	font-weight: normal;
 	height: 25px;
 }
+#panel:highlight {
+    background-color: #aa5555;
+}
+.panel-dummy {
+    background-color: rgba(50, 50, 50, 0.4);
+}
+.panel-dummy:entered {
+    background-color: rgba(255, 35, 35, 0.4);
+}
 #panelLeft {
 	spacing: 4px;
 }
@@ -455,85 +464,6 @@ StScrollBar StButton#vhandle:hover {
 	border: 2px solid grey;
 	border-radius: 4px;
 	color: #CCCCCC;
-}
-#LookingGlassDialog > #Toolbar {
-	border: 1px solid grey;
-	border-radius: 4px;
-}
-#LookingGlassDialog .labels {
-	spacing: 4px;
-}
-#LookingGlassDialog .notebook-tab {
-	padding: 2px;
-}
-#LookingGlassDialog .notebook-tab:hover {
-	color: #FFFFFF;
-}
-#LookingGlassDialog .notebook-tab:selected {
-	border: 1px solid #CCCCCC;
-	border-radius: 4px;
-	padding: 5px;
-}
-#LookingGlassDialog .lg-inspector-title {
-	font-weight: bold;
-	padding-bottom: 8px;
-}
-.lg-dialog StLabel {
-	color: #cccccc;
-}
-.lg-dialog StEntry {
-	color: #cccccc;
-	selection-background-color: #cccccc;
-	selected-color: black;
-}
-.lg-obj-inspector-title {
-	spacing: 4px;
-}
-.lg-obj-inspector-button {
-	border: 1px solid #cccccc;
-	padding: 4px;
-	border-radius: 4px;
-}
-.lg-obj-inspector-button:hover {
-	border: 1px solid #ffffff;
-}
-.lg-dialog .cinnamon-link {
-	color: #cccccc;
-}
-.lg-dialog .cinnamon-link:hover {
-	color: #ffffff;
-}
-#LookingGlassDialog StBoxLayout#EvalBox {
-	padding: 4px;
-	spacing: 4px;
-}
-#LookingGlassDialog StBoxLayout#ResultsArea {
-	spacing: 4px;
-}
-#lookingGlassExtensions {
-	padding: 4px;
-}
-.lg-extension-list {
-	padding: 4px;
-	spacing: 6px;
-}
-.lg-extension {
-	border: 1px solid #6f6f6f;
-	border-radius: 4px;
-	padding: 4px;
-}
-.lg-extension-name {
-	font-weight: bold;
-}
-.lg-extension-meta {
-	spacing: 6px;
-}
-#LookingGlassPropertyInspector {
-	background: rgba(0, 0, 0, 0.9);
-	border: 2px solid grey;
-	border-radius: 4px;
-	padding: 6px;
-	color: #cccccc;
 }
 /* ===================================================================
  * Date applet 
@@ -848,6 +778,21 @@ StScrollBar StButton#vhandle:hover {
 .modal-dialog-button:focus {
 	padding: 3px 31px 4px;
 }
+
+/* Info OSD popup */
+.info-osd {
+    font-size: 18pt;
+    border-radius: 24px;
+    background-color: rgba(85, 85, 85, 0.9);
+    border: 2px solid #868686;
+    color: #babdb6;
+    padding-right: 20px;
+    padding-left: 20px;
+    padding-bottom: 20px;
+    padding-top: 20px;
+    text-align: center;
+}
+
 /* ===================================================================
  * Run dialog
  * ===================================================================*/
@@ -1652,17 +1597,74 @@ StScrollBar StButton#vhandle:hover {
    background-color: white;
 }
 
-/* Snap/tile OSD popup */
+/* Media keys OSD popup */
+.osd-window {
+    background: rgba(80,80,80,0.8);
+    border: 2px solid #a5a5a5;
+    border-radius: 8px;
+    padding: 20px;
+    color: white;
+    spacing: 1em;
+}
 
-.snap-osd {
-    font-size: 18pt;
-    border-radius: 24px;
-    background-color: rgba(85, 85, 85, 0.9);
-    border: 2px solid #868686;
-    color: #babdb6;
-    padding-right: 20px;
-    padding-left: 20px;
-    padding-bottom: 20px;
-    padding-top: 20px;
-    text-align: center;
+.osd-window .level {
+    height: 0.7em;
+    border-radius: 0.3em;
+    background-color: rgba(190,190,190,0.2);
+}
+
+.tile-preview,
+.tile-hud {
+    background-color: rgba(85, 85, 85, 0.5);
+    border: 2px solid rgba(134, 134, 134, 0.8);
+}
+
+.tile-preview.snap,
+.tile-hud.snap {
+    background-color: rgba(134, 134, 170, 0.5);
+    border: 2px solid rgba(85, 85, 85, 0.8);
+}
+
+.tile-hud:top {
+    border-top-width: 0px;
+    border-radius: 0px 0px 8px 8px;
+}
+
+.tile-hud:bottom {
+    border-bottom-width: 0px;
+    border-radius: 8px 8px 0px 0px;
+}
+
+.tile-hud:left {
+    border-left-width: 0px;
+    border-radius: 0px 8px 8px 0px;
+}
+
+.tile-hud:right {
+    border-right-width: 0px;
+    border-radius: 8px 0px 0px 8px;
+}
+
+.tile-hud:top-left {
+    border-top-width: 0px;
+    border-left-width: 0px;
+    border-radius: 0px 0px 8px 0px;
+}
+
+.tile-hud:top-right {
+    border-top-width: 0px;
+    border-right-width: 0px;
+    border-radius: 0px 0px 0px 8px;
+}
+
+.tile-hud:bottom-left {
+    border-bottom-width: 0px;
+    border-left-width: 0px;
+    border-radius: 0px 8px 0px 0px;
+}
+
+.tile-hud:bottom-right {
+    border-bottom-width: 0px;
+    border-right-width: 0px;
+    border-radius: 8px 0px 0px 0px;
 }

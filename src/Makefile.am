@@ -80,6 +80,8 @@ include Makefile-hotplug-sniffer.am
 cinnamon_cflags =				\
 	$(CINNAMON_CFLAGS)			\
 	-I$(srcdir)/tray			\
+    -DCLUTTER_ENABLE_EXPERIMENTAL_API   \
+    -DCOGL_ENABLE_EXPERIMENTAL_API  \
 	-DVERSION=\"$(VERSION)\"		\
 	-DLOCALEDIR=\"$(datadir)/locale\" 	\
 	-DDATADIR=\"$(datadir)\"		\
@@ -135,8 +137,6 @@ libcinnamon_la_SOURCES =		\
 	cinnamon-wm-private.h		\
 	cinnamon-plugin.c		\
 	cinnamon-app.c			\
-	cinnamon-a11y.h			\
-	cinnamon-a11y.c			\
 	cinnamon-app-system.c		\
 	cinnamon-arrow.c			\
 	cinnamon-doc-system.c		\

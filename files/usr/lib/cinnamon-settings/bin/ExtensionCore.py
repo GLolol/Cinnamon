@@ -185,10 +185,15 @@ class ExtensionSidePage (SidePage):
         self.extConfigureButton = Gtk.Button.new_with_label(_("Configure"))
         self.extConfigureButton.connect("clicked", self._external_configure_launch)
 
-        if not self.themes:
-            restoreButton = Gtk.Button.new_with_label(_("Restore to default"))
-        else:
+        if self.collection_type == "theme":
             restoreButton = Gtk.Button.new_with_label(_("Restore default theme"))
+        elif self.collection_type == "desklet":
+            restoreButton = Gtk.Button.new_with_label(_("Remove all desklets"))
+        elif self.collection_type == "extension":
+            restoreButton = Gtk.Button.new_with_label(_("Disable all extensions"))
+        else:
+            restoreButton = Gtk.Button.new_with_label(_("Restore to default"))
+
         restoreButton.connect("clicked", lambda x: self._restore_default_extensions())
         
         hbox = Gtk.HBox()
@@ -1192,7 +1197,11 @@ Please contact the developer.""")
                             extension_description = data["description"]                          
                             try: extension_max_instances = int(data["max-instances"])
                             except KeyError: extension_max_instances = 1
-                            except ValueError: extension_max_instances = 1
+                            except ValueError:
+                                if "infinite" in data["max-instances"]:
+                                    extension_max_instances = 0x7fffffff
+                                else:
+                                    extension_max_instances = 1
 
                             try: extension_role = data["role"]
                             except KeyError: extension_role = None

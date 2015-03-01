@@ -20,7 +20,7 @@
 #include <meta/meta-plugin.h>
 #include <meta/prefs.h>
 
-#include "cinnamon-a11y.h"
+#include <atk-bridge.h>
 #include "cinnamon-global.h"
 #include "cinnamon-global-private.h"
 #include "cinnamon-perf-log.h"
@@ -171,6 +171,20 @@ malloc_statistics_callback (CinnamonPerfLog *perf_log,
 }
 
 static void
+cinnamon_a11y_init (void)
+{
+  if (clutter_get_accessibility_enabled () == FALSE)
+    {
+      g_warning ("Accessibility: clutter has no accessibility enabled"
+                 " skipping the atk-bridge load");
+    }
+  else
+    {
+      atk_bridge_adaptor_init (NULL, NULL);
+    }
+}
+
+static void
 cinnamon_perf_log_init (void)
 {
   CinnamonPerfLog *perf_log = cinnamon_perf_log_get_default ();
@@ -266,7 +280,7 @@ main (int argc, char **argv)
 
   g_option_context_free (ctx);
 
-  meta_plugin_type_register (gnome_cinnamon_plugin_get_type ());
+  meta_plugin_manager_set_plugin_type (gnome_cinnamon_plugin_get_type ());
 
   /* Prevent meta_init() from causing gtk to load gail and at-bridge */
   g_setenv ("NO_GAIL", "1", TRUE);
