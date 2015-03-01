@@ -17,11 +17,12 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 
 # This will set current version string
-VERSION := $(shell dpkg-parsechangelog | sed -n 's/Version: //p')
+# VERSION := $(shell dpkg-parsechangelog | sed -n 's/Version: //p')
 # This will set major version string (strip substring '.<something>' after 'maemo<something>')
-CINNAMON_VERSION := $(shell echo $(VERSION) | sed 's/\(.*.*\)\..*/\1.0/')
+# CINNAMON_VERSION := $(shell echo $(VERSION) | sed 's/\(.*.*\)\..*/\1.0/')
 
-DH_GENCONTROL_ARGS = -Vcinnamon:Version=$(CINNAMON_VERSION)
+# DH_GENCONTROL_ARGS = -Vcinnamon:Version=$(CINNAMON_VERSION)
+DH_GENCONTROL_ARGS = -Vcinnamon:Version=2.4.0
 
 %:
 	dh  $@ --with autoreconf,python2,gir $(DH_PARALLEL_OPTION)
