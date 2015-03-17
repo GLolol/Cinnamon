@@ -1,3 +1,9 @@
+cinnamon (2.5~2+git20150316+utopia1) unstable; urgency=medium
+
+  * Git snapshot as of 03 Mar 2015.
+
+ -- James Lu <glolol@overdrive.pw>  Mon, 16 Mar 2015 23:50:49 -0700
+
 cinnamon (2.5~1+git20150228+utopia1) unstable; urgency=medium
 
   * Merge upstream git master as of 28 Feb 2015.
