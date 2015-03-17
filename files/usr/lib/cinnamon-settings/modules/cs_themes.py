@@ -16,7 +16,7 @@ class Module:
         self.name = "themes"
         self.category = "appear"
 
-    def on_module_selected(self):
+    def on_module_selected(self, switch_container):
         if not self.loaded:
             print "Loading Themes module"            
             self.settings = Gio.Settings.new("org.cinnamon.desktop.interface")
@@ -29,9 +29,8 @@ class Module:
             self.metacity_chooser = self.create_button_chooser(self.wm_settings, 'theme', 'themes', 'metacity-1', button_picture_size=32, menu_pictures_size=32, num_cols=4)
             self.cinnamon_chooser = self.create_button_chooser(self.cinnamon_settings, 'name', 'themes', 'cinnamon', button_picture_size=60, menu_pictures_size=60, num_cols=4)
 
-            bg = SectionBg()        
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            bg.add(vbox)
+            self.sidePage.add_widget(vbox)
             
             section = Section(_("Themes"))        
             section.add(self.make_group(_("Window borders"), self.metacity_chooser))
@@ -52,7 +51,6 @@ class Module:
             section.add(GSettingsCheckButton(_("Show icons on buttons"), "org.cinnamon.settings-daemon.plugins.xsettings", "buttons-have-icons", None))                        
             vbox.add(section)
 
-            self.sidePage.add_widget(bg)
             self.builder = self.sidePage.builder
 
             for path in [os.path.expanduser("~/.themes"), os.path.expanduser("~/.icons")]:
@@ -188,8 +186,8 @@ class Module:
         window.set_border_width(6)
         window.set_position(Gtk.WindowPosition.CENTER)        
         page = ExtensionSidePage(self.name, self.icon, self.keywords, box, "theme", None)
-        page.load(window=window)
-        box.pack_start(page.notebook, True, True, 6)
+        page.load(None, window=window)
+        box.pack_start(page.vbox, True, True, 6)
         window.show_all()
         return True
 

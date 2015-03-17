@@ -18,7 +18,7 @@ class Module:
             return True
         return False
 
-    def on_module_selected(self):
+    def on_module_selected(self, switch_container):
         if self.loaded:
             return
 
@@ -27,10 +27,8 @@ class Module:
         nemo_desktop_schema = Gio.Settings.new(schema)
         nemo_desktop_keys = nemo_desktop_schema.list_keys()
 
-        bg = SectionBg()
-        self.sidePage.add_widget(bg)
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        bg.add(vbox)
+        self.sidePage.add_widget(vbox)
 
         show_desktop_icons_key = "show-desktop-icons"        
         if show_desktop_icons_key in nemo_desktop_keys:            

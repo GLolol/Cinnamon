@@ -35,14 +35,12 @@ class Module:
         self.category = "prefs"
         self.comment = _("Manage screen lock settings")        
 
-    def on_module_selected(self):
+    def on_module_selected(self, switch_container):
         if not self.loaded:
             print "Loading Screensaver module"
             schema = "org.cinnamon.desktop.screensaver"
-            bg = SectionBg()        
-            self.sidePage.add_widget(bg)
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            bg.add(vbox)
+            self.sidePage.add_widget(vbox)
 
             section = Section(_("Lock Settings"))
             widget = GSettingsCheckButton(_("Lock the computer when put to sleep"), "org.cinnamon.settings-daemon.plugins.power", "lock-on-suspend", None)

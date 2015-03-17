@@ -135,10 +135,10 @@ class DefaultTerminalButton(Gtk.AppChooserButton): #TODO: See if we can get this
         self.active_items = []
         self.settings = Gio.Settings.new(TERMINAL_SCHEMA)
         self.key_value = self.settings.get_string("exec")
-        x1 = 0
+        count_up = 0
         
-        while (self.this_item is not None and x1 < len(apps)):
-            self.this_item = apps[x1]
+        while (self.this_item is not None and count_up < len(apps)):
+            self.this_item = apps[count_up]
             cat_val = Gio.DesktopAppInfo.get_categories(self.this_item)
             exec_val = Gio.DesktopAppInfo.get_string(self.this_item, "Exec")
             name_val = Gio.DesktopAppInfo.get_string(self.this_item, "Name")
@@ -151,7 +151,7 @@ class DefaultTerminalButton(Gtk.AppChooserButton): #TODO: See if we can get this
                     self.active_items.append(exec_val)
                     if (self.key_value == exec_val):
                         self.set_active_custom_item(self.key_value)
-            x1 += 1
+            count_up += 1
 
     def onChanged(self, button):
         index_num = button.get_active()
@@ -349,32 +349,30 @@ class Module:
         self.category = "prefs"
         self.comment = _("Preferred Applications")
 
-    def on_module_selected(self):
+    def on_module_selected(self, switch_container):
         if not self.loaded:
             print "Loading Default module"
 
-            self.tabs = []
-            self.notebook = Gtk.Notebook()
-            self.viewbox1 = Gtk.VBox()
-            self.viewbox2 = Gtk.VBox()
-            
-            default = Gtk.ScrolledWindow()
-            default.add_with_viewport(self.viewbox1)
-            
-            media = Gtk.ScrolledWindow()
-            media.add_with_viewport(self.viewbox2)
-            
-            self.notebook.append_page(default, Gtk.Label.new(_("Preferred Applications")))
-            self.notebook.append_page(media, Gtk.Label.new(_("Removable Media")))
+            stack = SettingsStack()
 
+            self.sidePage.add_widget(stack)
+
+            self.stack_switcher = Gtk.StackSwitcher()
+            self.stack_switcher.set_halign(Gtk.Align.CENTER)
+            self.stack_switcher.set_stack(stack)
+            switch_container.pack_start(self.stack_switcher, True, True, 0)
+
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            stack.add_titled(vbox, "preferred", _("Preferred Applications"))
             widget = self.setupDefaultApps()
-            self.viewbox1.pack_start(widget, False, False, 2)
+            vbox.pack_start(widget, False, False, 2)
 
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            stack.add_titled(vbox, "removable", _("Removable Media"))
             widget = self.setupMedia()
-            self.viewbox2.pack_start(widget, False, False, 2)                        
+            vbox.pack_start(widget, False, False, 2)
 
-            self.notebook.expand = True
-            self.sidePage.add_widget(self.notebook)
+        self.stack_switcher.show()
             
 
     def setupDefaultApps(self):

@@ -23,6 +23,7 @@ try:
     import tempfile
     import math
     import subprocess
+    import tweenEquations
 
 except Exception, detail:
     print detail
@@ -90,15 +91,9 @@ class EditableEntry (Gtk.Notebook):
     def get_text(self):
         return self.entry.get_text()
 
-class PictureChooserButton (Gtk.Button):
-
-    def __init__ (self, num_cols=4, button_picture_size=None, menu_pictures_size=None, has_button_label=False):        
-        super(PictureChooserButton, self).__init__()
-        self.num_cols = num_cols
-        self.button_picture_size = button_picture_size
-        self.menu_pictures_size = menu_pictures_size
-        self.row = 0
-        self.col = 0
+class BaseChooserButton(Gtk.Button):
+    def __init__ (self, has_button_label=False):
+        super(BaseChooserButton, self).__init__()
         self.menu = Gtk.Menu()
         self.button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         self.button_image = Gtk.Image()
@@ -108,6 +103,47 @@ class PictureChooserButton (Gtk.Button):
             self.button_box.add(self.button_label)
         self.add(self.button_box)
         self.connect("button-release-event", self._on_button_clicked)
+
+    def popup_menu_below_button (self, menu, widget):
+        window = widget.get_window()
+        screen = window.get_screen()
+        monitor = screen.get_monitor_at_window(window)
+
+        warea = screen.get_monitor_workarea(monitor)
+        wrect = widget.get_allocation()
+        mrect = menu.get_allocation()
+
+        unused_var, window_x, window_y = window.get_origin()
+
+        # Position left edge of the menu with the right edge of the button
+        x = window_x + wrect.x + wrect.width
+        # Center the menu vertically with respect to the monitor
+        y = warea.y + (warea.height / 2) - (mrect.height / 2)
+
+        # Now, check if we're still touching the button - we want the right edge
+        # of the button always 100% touching the menu
+
+        if y > (window_y + wrect.y):
+            y = y - (y - (window_y + wrect.y))
+        elif (y + mrect.height) < (window_y + wrect.y + wrect.height):
+            y = y + ((window_y + wrect.y + wrect.height) - (y + mrect.height))
+
+        push_in = True # push_in is True so all menu is always inside screen
+        return (x, y, push_in)
+
+    def _on_button_clicked(self, widget, event):
+        if event.button == 1:
+            self.menu.show_all()
+            self.menu.popup(None, None, self.popup_menu_below_button, self, event.button, event.time)
+
+class PictureChooserButton(BaseChooserButton):
+    def __init__ (self, num_cols=4, button_picture_size=None, menu_pictures_size=None, has_button_label=False):
+        super(PictureChooserButton, self).__init__(has_button_label)
+        self.num_cols = num_cols
+        self.button_picture_size = button_picture_size
+        self.menu_pictures_size = menu_pictures_size
+        self.row = 0
+        self.col = 0
         self.progress = 0.0
 
         context = self.get_style_context()
@@ -158,38 +194,6 @@ class PictureChooserButton (Gtk.Button):
 
     def set_button_label(self, label):
         self.button_label.set_markup(label)
-
-    def popup_menu_below_button (self, menu, widget):  
-        window = widget.get_window()
-        screen = window.get_screen()
-        monitor = screen.get_monitor_at_window(window)
-
-        warea = screen.get_monitor_workarea(monitor)
-        wrect = widget.get_allocation()
-        mrect = menu.get_allocation()
-
-        unused_var, window_x, window_y = window.get_origin()
-
-        # Position left edge of the menu with the right edge of the button
-        x = window_x + wrect.x + wrect.width
-        # Center the menu vertically with respect to the monitor
-        y = warea.y + (warea.height / 2) - (mrect.height / 2)
-
-        # Now, check if we're still touching the button - we want the right edge
-        # of the button always 100% touching the menu
-
-        if y > (window_y + wrect.y):
-            y = y - (y - (window_y + wrect.y))
-        elif (y + mrect.height) < (window_y + wrect.y + wrect.height):
-            y = y + ((window_y + wrect.y + wrect.height) - (y + mrect.height))
-
-        push_in = True # push_in is True so all menu is always inside screen
-        return (x, y, push_in)
-
-    def _on_button_clicked(self, widget, event):
-        if event.button == 1:
-            self.menu.show_all()
-            self.menu.popup(None, None, self.popup_menu_below_button, self, event.button, event.time)
 
     def _on_picture_selected(self, menuitem, path, callback, id=None):
         if id is not None:
@@ -255,20 +259,21 @@ class SidePage:
         self.size = size
         self.topWindow = None
         self.builder = None
+        self.stack_switcher = None
         if self.module != None:
             self.module.loaded = False
 
     def add_widget(self, widget):
         self.widgets.append(widget)        
 
-    def build(self):        
+    def build(self, switch_container):        
         # Clear all the widgets from the content box
         widgets = self.content_box.get_children()
         for widget in widgets:
             self.content_box.remove(widget)
 
         if (self.module is not None):
-            self.module.on_module_selected()
+            self.module.on_module_selected(switch_container)
             self.module.loaded = True
 
         # Add our own widgets
@@ -288,16 +293,35 @@ class SidePage:
                 children = self.content_box.get_children()
                 for child in children:
                     child.show()
-                    if child.get_name() == "c_box":
-                        c_widgets = child.get_children()
-                        if not c_widgets:
-                            c_widget = self.content_box.c_manager.get_c_widget(self.exec_name)
-                            if c_widget is not None:
-                                child.pack_start(c_widget, False, False, 2)
-                                c_widget.show()
-                        else:
-                            for c_widget in c_widgets:
-                                c_widget.show()
+                    if child.get_name() != "c_box":
+                        pass
+
+                    c_widgets = child.get_children()
+                    if not c_widgets:
+                        c_widget = self.content_box.c_manager.get_c_widget(self.exec_name)
+                        if c_widget is not None:
+                            child.pack_start(c_widget, False, False, 2)
+                            c_widget.show()
+                    else:
+                        for c_widget in c_widgets:
+                            c_widget.show()
+
+                    # child.get_children()[0] is the CC Panel object (child is
+                    # a box, but will only contain one subwidget). This is
+                    # usually a bin, but profound hackery might turn it into a
+                    # VBox. So we call get_children()[0] again to obtain the 
+                    # primary widget of the panel. We look # in here to see if
+                    # there is a stack switcher. If found, we move it to the
+                    # switch container
+                    for i in child.get_children()[0].get_children()[0]:
+                        if isinstance(i, Gtk.StackSwitcher):
+                            self.stack_switcher = i
+                            break
+
+                    if self.stack_switcher:
+                        self.stack_switcher.show()
+                        self.stack_switcher.get_parent().remove(self.stack_switcher)
+                        switch_container.pack_start(self.stack_switcher, True, True, 0)
             else:
                 self.content_box.show_all()
                 try:
@@ -425,6 +449,13 @@ class SectionBg(Gtk.Viewport):
         style = self.get_style_context()
         style.add_class("section-bg")
         self.expand = True # Tells CS to give expand us to the whole window
+
+class SettingsStack(Gtk.Stack):
+    def __init__(self):
+        Gtk.Stack.__init__(self)
+        self.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.set_transition_duration(150)
+        self.expand = True
 
 class IndentedHBox(Gtk.HBox):
     def __init__(self):

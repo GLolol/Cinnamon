@@ -3,6 +3,7 @@
 const Cinnamon = imports.gi.Cinnamon;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
+const Gtk = imports.gi.Gtk;
 const Lang = imports.lang;
 const Signals = imports.signals;
 const St = imports.gi.St;
@@ -128,23 +129,25 @@ function createMetaDummy(uuid, path, state) {
 }
 
 // The Extension object itself
-function Extension(dir, type) {
-    this._init(dir, type);
+function Extension(dir, type, force) {
+    this._init(dir, type, force);
 }
 
 Extension.prototype = {
-    _init: function(dir, type) {
+    _init: function(dir, type, force) {
         this.uuid = dir.get_basename();
         this.dir = dir;
         this.type = type;
         this.lowerType = type.name.toLowerCase().replace(" ", "_");
         this.theme = null;
         this.stylesheet = null;
+        this.iconDirectory = null;
         this.meta = createMetaDummy(this.uuid, dir.get_path(), State.INITIALIZING);
         this.startTime = new Date().getTime();
 
         this.loadMetaData(dir.get_child('metadata.json'));
-        this.validateMetaData();
+        if (!force)
+            this.validateMetaData();
 
         this.ensureFileExists(dir.get_child(this.lowerType + '.js'));
         this.loadStylesheet(dir.get_child('stylesheet.css'));
@@ -154,6 +157,7 @@ Extension.prototype = {
                 this.loadStylesheet(this.dir.get_child('stylesheet.css'));
             }));
         }
+        this.loadIconDirectory(dir);
 
         try {
             CinnamonJS.add_extension_importer('imports.ui.extension.importObjects', this.uuid, this.meta.path);
@@ -206,6 +210,7 @@ Extension.prototype = {
         if(this.meta.state == State.INITIALIZING) {
             this.unlockRole();
             this.unloadStylesheet();
+            this.unloadIconDirectory();
             forgetExtension(this.uuid);
         }
         error._alreadyLogged = true;
@@ -306,6 +311,29 @@ Extension.prototype = {
             }
         }
     },
+    
+    loadIconDirectory: function(dir) {
+        let iconDir = dir.get_child("icons");
+        if (iconDir.query_exists(null)) {
+            let path = iconDir.get_path();
+            this.iconDirectory = path;
+            Gtk.IconTheme.get_default().append_search_path(path);
+        }
+    },
+    
+    unloadIconDirectory: function() {
+        if (this.iconDirectory) {
+            let iconTheme = Gtk.IconTheme.get_default();
+            let searchPath = iconTheme.get_search_path();
+            for (let i = 0; i < searchPath.length; i++) {
+                if (searchPath[i] == this.iconDirectory) {
+                    searchPath.splice(i,1);
+                    iconTheme.set_search_path(searchPath);
+                    break;
+                }
+            }
+        }
+    },
 
     ensureFileExists: function(file) {
         if (!file.query_exists(null)) {
@@ -389,11 +417,11 @@ function loadExtension(uuid, type) {
     if(!extension) {
         var forgetMeta = true;
         try {
-            let dir = findExtensionDirectory(uuid, type);
+            let dir = findExtensionDirectory(uuid.replace(/!/,''), type);
             if (dir == null) {
                 throw ("not-found");
             }
-            extension = new Extension(dir, type);
+            extension = new Extension(dir, type, uuid.indexOf("!") == 0);
             forgetMeta = false;
 
             if(!type.callbacks.finishExtensionLoad(extension))
@@ -438,6 +466,7 @@ function unloadExtension(uuid) {
             global.logError('Error disabling ' + extension.lowerType + ' ' + extension.uuid, e);
         }
         extension.unloadStylesheet();
+        extension.unloadIconDirectory();
 
         extension.type.emit('extension-unloaded', extension.uuid);
 

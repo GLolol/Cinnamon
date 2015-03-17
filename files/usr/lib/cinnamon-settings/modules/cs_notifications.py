@@ -34,7 +34,7 @@ class Module:
         self.comment = _("Notification preferences")
         self.category = "prefs"
 
-    def on_module_selected(self):
+    def on_module_selected(self, switch_container):
         if self.loaded:
             return
 
@@ -42,11 +42,8 @@ class Module:
 
         Notify.init("cinnamon-settings-notifications-test")
 
-        bg = SectionBg()
-        self.sidePage.add_widget(bg)
-
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        bg.add(vbox)
+        self.sidePage.add_widget(vbox)
             
         section = Section(_("Behaviour"))
         section.add(GSettingsCheckButton(_("Display notifications"), "org.cinnamon.desktop.notifications", "display-notifications", None))
