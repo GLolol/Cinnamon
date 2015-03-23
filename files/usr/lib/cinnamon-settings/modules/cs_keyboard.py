@@ -66,6 +66,8 @@ KEYBINDINGS = [
     [_("Toggle Expo"), MUFFIN_KEYBINDINGS_SCHEMA, "switch-to-workspace-up", "general"],
     [_("Cycle through open windows"), MUFFIN_KEYBINDINGS_SCHEMA, "switch-windows", "general"],
     [_("Cycle backwards through open windows"), MUFFIN_KEYBINDINGS_SCHEMA, "switch-windows-backward", "general"],
+    [_("Cycle through open windows of the same application"), MUFFIN_KEYBINDINGS_SCHEMA, "switch-group", "general"],
+    [_("Cycle backwards through open windows of the same application"), MUFFIN_KEYBINDINGS_SCHEMA, "switch-group-backward", "general"],
     [_("Run dialog"), MUFFIN_KEYBINDINGS_SCHEMA, "panel-run-dialog", "general"],
     # General - Troubleshooting
     [_("Toggle Looking Glass"), CINNAMON_SCHEMA, "looking-glass-keybinding", "trouble"],
@@ -210,22 +212,17 @@ class Module:
         self.name = "keyboard"
         self.category = "hardware"
 
-    def on_module_selected(self, switch_container):
+    def on_module_selected(self):
         if not self.loaded:
             print "Loading Keyboard module"
 
-            stack = SettingsStack()
-            self.sidePage.add_widget(stack)
-
-            self.stack_switcher = Gtk.StackSwitcher()
-            self.stack_switcher.set_halign(Gtk.Align.CENTER)
-            self.stack_switcher.set_stack(stack)
-            switch_container.pack_start(self.stack_switcher, True, True, 0)
+            self.sidePage.stack = SettingsStack()
+            self.sidePage.add_widget(self.sidePage.stack)
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             vbox.set_border_width(6)
             vbox.set_spacing(6)
-            stack.add_titled(vbox, "typing", _("Typing"))
+            self.sidePage.stack.add_titled(vbox, "typing", _("Typing"))
 
             vbox.add(GSettingsCheckButton(_("Enable key repeat"), "org.cinnamon.settings-daemon.peripherals.keyboard", "repeat", None))
             box = IndentedHBox()
@@ -253,7 +250,7 @@ class Module:
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             vbox.set_border_width(6)
             vbox.set_spacing(6)
-            stack.add_titled(vbox, "shortcuts", _("Shortcuts"))
+            self.sidePage.stack.add_titled(vbox, "shortcuts", _("Shortcuts"))
 
             headingbox = Gtk.Box.new(Gtk.Orientation.VERTICAL, 2)
             mainbox = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 2)
@@ -402,7 +399,7 @@ class Module:
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             vbox.set_border_width(6)
             vbox.set_spacing(6)
-            stack.add_titled(vbox, "layouts", _("Layouts"))
+            self.sidePage.stack.add_titled(vbox, "layouts", _("Layouts"))
             try:
                 widget = self.sidePage.content_box.c_manager.get_c_widget("region")
             except:
@@ -414,8 +411,6 @@ class Module:
                 cheat_box.set_vexpand(False)
                 widget.show()
                 vbox.pack_start(cheat_box, True, True, 0)
-
-        self.stack_switcher.show()
 
     def addNotebookTab(self, tab):
         self.notebook.append_page(tab.tab, Gtk.Label.new(tab.name))
