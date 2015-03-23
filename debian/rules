@@ -52,7 +52,3 @@ override_dh_girepository:
 
 override_dh_gencontrol:
 	dh_gencontrol -- $(DH_GENCONTROL_ARGS)
-
-override_dh_builddeb:
-	dh_builddeb -- -Zxz -z9
-
