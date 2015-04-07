@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 from SettingsWidgets import *
 
@@ -7,6 +7,7 @@ import subprocess
 import os
 import re
 import threading
+import commands
 
 
 def killProcess(process):
@@ -41,7 +42,7 @@ def getGraphicsInfos():
         for line in getProcessOut(("lspci", "-v", "-s", cardId)):
             if line.startswith(cardId):
                 cardName = (line.split(":")[2].split("(rev")[0].strip())
-  
+
         if cardName:
             cards[count] = (cardName)
             count += 1
@@ -51,11 +52,11 @@ def getGraphicsInfos():
 def getDiskSize():
     disksize = 0
     moreThanOnce = 0
-    for line in getProcessOut("df"):
+    for line in getProcessOut(("df", "-l")):
         if line.startswith("/dev/"):
             moreThanOnce += 1
             disksize += float(line.split()[1])
-            
+
     if (moreThanOnce > 1):
         return disksize, True
     else:
@@ -76,18 +77,18 @@ def getProcInfos():
                     break
     return result
 
-def createSystemInfos():    
+def createSystemInfos():
     procInfos = getProcInfos()
     infos = []
-    arch = platform.machine().replace("_", "-")    
+    arch = platform.machine().replace("_", "-")
     (memsize, memunit) = procInfos['mem_total'].split(" ")
     processorName = procInfos['cpu_name'].replace("(R)", u"\u00A9").replace("(TM)", u"\u2122")
     if 'cpu_cores' in procInfos:
         processorName = processorName + u" \u00D7 " + procInfos['cpu_cores']
-    
+
     if os.path.exists("/etc/linuxmint/info"):
         title = commands.getoutput("awk -F \"=\" '/GRUB_TITLE/ {print $2}' /etc/linuxmint/info")
-        infos.append((_("Operating System"), title))    
+        infos.append((_("Operating System"), title))
     elif os.path.isfile("/etc/arch-release"):
         title = "Arch Linux"
         infos.append((_("Operating System"), title))
@@ -96,7 +97,7 @@ def createSystemInfos():
         # Normalize spacing in distribution name
         s = re.sub('\s{2,}', ' ', s)
         infos.append((_("Operating System"), s))
-    if 'CINNAMON_VERSION' in os.environ:            
+    if 'CINNAMON_VERSION' in os.environ:
         infos.append((_("Cinnamon Version"), os.environ['CINNAMON_VERSION']))
     infos.append((_("Linux Kernel"), platform.release()))
     infos.append((_("Processor"), processorName))
@@ -104,7 +105,7 @@ def createSystemInfos():
         infos.append((_("Memory"), '%.1f %s' % ((float(memsize)/(1024*1024)), _("GiB"))))
     else:
         infos.append((_("Memory"), procInfos['mem_total']))
-        
+
     diskSize, multipleDisks = getDiskSize()
     if (multipleDisks):
         diskText = _("Hard Drives")
@@ -119,34 +120,32 @@ def createSystemInfos():
     return infos
 
 class Module:
+    name = "info"
+    category = "hardware"
+    comment = _("Display system information")
+
     def __init__(self, content_box):
         keywords = _("system, information, details, graphic, sound, kernel, version")
         sidePage = SidePage(_("System Info"), "cs-details", keywords, content_box, module=self)
         self.sidePage = sidePage
-        self.name = "info"
-        self.category = "hardware"
-        self.comment = _("Display system information")
-        
+
     def on_module_selected(self):
         if not self.loaded:
             print "Loading Info module"
+
             infos = createSystemInfos()
 
-            table = Gtk.Table.new(len(infos), 2, False)
-            table.set_margin_top(8)
-            table.set_margin_bottom(8)
-            table.set_row_spacings(8)
-            table.set_col_spacings(15)
-            self.sidePage.add_widget(table)
+            page = SettingsPage()
+            self.sidePage.add_widget(page)
 
-            row = 0
+            settings = page.add_section(_("System info"))
+
             for (key, value) in infos:
+                widget = SettingsWidget()
+                widget.set_spacing(40)
                 labelKey = Gtk.Label.new(key)
-                labelKey.set_alignment(1, 0.5)
+                widget.pack_start(labelKey, False, False, 0)
                 labelKey.get_style_context().add_class("dim-label")
                 labelValue = Gtk.Label.new(value)
-                labelValue.set_alignment(0, 0.5)
-                table.attach(labelKey, 0, 1, row, row+1)
-                table.attach(labelValue, 1, 2, row, row+1)
-                row += 1
-                
+                widget.pack_end(labelValue, False, False, 0)
+                settings.add_row(widget)

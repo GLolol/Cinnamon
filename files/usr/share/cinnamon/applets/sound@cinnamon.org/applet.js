@@ -2,6 +2,7 @@ const Applet = imports.ui.applet;
 const Mainloop = imports.mainloop;
 const Gio = imports.gi.Gio;
 const Interfaces = imports.misc.interfaces;
+const Util = imports.misc.util;
 const Lang = imports.lang;
 const Cinnamon = imports.gi.Cinnamon;
 const Clutter = imports.gi.Clutter;
@@ -19,9 +20,10 @@ const MEDIA_PLAYER_2_NAME = "org.mpris.MediaPlayer2";
 const MEDIA_PLAYER_2_PLAYER_NAME = "org.mpris.MediaPlayer2.Player";
 
 /* global values */
-let support_seek = [
+let players_without_seek_support = ['spotify'];
+let players_with_seek_support = [
     'clementine', 'banshee', 'rhythmbox', 'rhythmbox3', 'pragha', 'quodlibet',
-    'amarok', 'xnoise', 'gmusicbrowser', 'spotify', 'vlc', 'gnome-mplayer',
+    'amarok', 'xnoise', 'gmusicbrowser', 'vlc', 'gnome-mplayer',
     'qmmp', 'deadbeef', 'audacious'];
 /* dummy vars for translation */
 let x = _("Playing");
@@ -110,7 +112,7 @@ function VolumeSlider(){
 VolumeSlider.prototype = {
     __proto__: PopupMenu.PopupSliderMenuItem.prototype,
 
-    _init: function(applet, stream, tooltip){
+    _init: function(applet, stream, tooltip, app_icon){
         PopupMenu.PopupSliderMenuItem.prototype._init.call(this, 0);
         this.applet = applet;
 
@@ -123,8 +125,15 @@ VolumeSlider.prototype = {
 
         this.connect("value-changed", Lang.bind(this, this._onValueChanged));
 
-        this.iconName = this.isMic? "microphone-sensitivity-none" : "audio-volume-muted";
-        this.icon = new St.Icon({icon_name: this.iconName, icon_type: St.IconType.SYMBOLIC, icon_size: 16});
+        this.app_icon = app_icon;
+        if (this.app_icon == null) {
+            this.iconName = this.isMic? "microphone-sensitivity-none" : "audio-volume-muted";
+            this.icon = new St.Icon({icon_name: this.iconName, icon_type: St.IconType.SYMBOLIC, icon_size: 16});
+        }
+        else {
+            this.icon = new St.Icon({icon_name: this.app_icon, icon_type: St.IconType.FULLCOLOR, icon_size: 16});
+        }
+
         this.actor.add_actor(this.icon);
 
         this.connectWithStream(stream);
@@ -174,10 +183,12 @@ VolumeSlider.prototype = {
     _update: function(){
         let value = (!this.stream || this.stream.is_muted)? 0 : this.stream.volume / this.applet._volumeMax;
         let percentage = Math.round(value * 100) + "%";
-        let iconName = this._volumeToIcon(value);
 
         this.tooltip.set_text(this.tooltipText + percentage);
-        this.icon.icon_name = iconName;
+        let iconName = this._volumeToIcon(value);
+        if (this.app_icon == null) {
+            this.icon.icon_name = iconName;
+        }
         this.setValue(value);
 
         //send data to applet
@@ -234,27 +245,37 @@ StreamMenuSection.prototype = {
         PopupMenu.PopupMenuSection.prototype._init.call(this);
 
         let iconName = stream.icon_name;
-        //banshee sends the icon name audio, hardcoding it here as a workaround
-        if(iconName === "audio")
-            iconName = "banshee";
-
         let name = stream.name;
-        if(name.length > 16)
+
+        // capitalize the stream name
+        if (name.length > 2) {
+            name = name.charAt(0).toUpperCase() + name.slice(1);
+        }
+
+        // Trim stream name
+        if(name.length > 16) {
             name = name.substring(0, 16) + "... ";
+        }
 
-        let icon = new St.Icon({icon_name: iconName, icon_type: St.IconType.FULLCOLOR, icon_size: 16});
-        let label = new St.Label({text: name, margin_left: 5});
-
-        let box = new St.BoxLayout();
-        box.add_actor(icon);
-        box.add_actor(label);
+        // Special cases
+        if(name === "Banshee") {
+            iconName = "banshee";
+        }
+        else if (name === "Spotify") {
+            iconName = "spotify";
+        }
+        if(name === "VBox") {
+            name = "Virtualbox";
+            iconName = "virtualbox";
+        }
+        else if (iconName === "audio") {
+            iconName = "audio-x-generic";
+        }
 
         let item = new PopupMenu.PopupBaseMenuItem({reactive: false});
-        item.addActor(box);
+        let slider = new VolumeSlider(applet, stream, name, iconName);
+        item.addActor(slider.actor);
         this.addMenuItem(item);
-
-        let slider = new VolumeSlider(applet, stream);
-        this.addMenuItem(slider);
     }
 }
 
@@ -267,7 +288,7 @@ Player.prototype = {
 
     _init: function(system_status_button, busname, owner) {
         PopupMenu.PopupMenuSection.prototype._init.call(this);
-        this._playerInfo = new PlayerInfo(this);
+        this._playerInfo = new TrackInfo("", "");
         this.showPosition = true; // @todo: Get from settings
         this._owner = owner;
         this._busName = busname;
@@ -306,6 +327,13 @@ Player.prototype = {
                                                   this._dbus_acquired();
                                               }
                                           }));
+    },
+
+    get playerInfo() {
+        this._playerInfo = new TrackInfo("", "");
+        if (this._prop && this._mediaServerPlayer && this._mediaServer)
+            this._setStatus(this._mediaServerPlayer.PlaybackStatus);
+        return this._playerInfo.actor;
     },
 
     _dbus_acquired: function() {
@@ -391,7 +419,16 @@ Player.prototype = {
 
         if (this._mediaServer.CanRaise) {
             this._raiseButton = new ControlButton('go-up',
-                Lang.bind(this, function () { this._mediaServer.RaiseRemote(); this._system_status_button.menu.actor.hide(); }));
+                Lang.bind(this, function () {
+                    if (this._name === "spotify") {
+                        // Spotify isn't able to raise via Dbus once its main UI is closed
+                        Util.spawn(['spotify']);
+                    }
+                    else {
+                        this._mediaServer.RaiseRemote();
+                    }
+                    this._system_status_button.menu.actor.hide();
+                }));
             this._raiseButtonTooltip = new Tooltips.Tooltip(this._raiseButton.button, _("Open Player"));
             this.controls.add_actor(this._raiseButton.getActor());
         }
@@ -412,7 +449,11 @@ Player.prototype = {
 
         this._timeoutId = 0;
         //_timerInterval should stay in sync with the Rate property
-        this._timerInterval = this._mediaServerPlayer.Rate;
+        this._timerInterval = 1;
+        let interval = Math.round(1000 / this._mediaServerPlayer.Rate);
+        if(interval > 0 && isFinite(interval))
+            this._timerInterval = interval;
+
         this._setStatus(this._mediaServerPlayer.PlaybackStatus);
         this._trackId = {};
         this._setMetadata(this._mediaServerPlayer.Metadata);
@@ -446,8 +487,13 @@ Player.prototype = {
                     this._setMetadata(props.Metadata.deep_unpack());
                 if (props.CanGoNext || props.CanGoPrevious)
                     this._updateControls();
-                if (props.Rate)
-                    this._runTimer(props.Rate.unpack());
+                if (props.Rate) {
+                    let interval = Math.round(1000 / props.Rate.unpack());
+                    if (interval > 0 && isFinite(interval)) {
+                        this._timerInterval = interval;
+                        this._runTimer();
+                    }
+                }
         }));
 
         //get the desktop entry and pass it to the applet
@@ -538,6 +584,13 @@ Player.prototype = {
                 can_seek = position[0].get_boolean();
             }
         }));
+        // Some players say they "CanSeek" but don't actually give their position over dbus (spotify for instance)
+        for (i = 0; i < players_without_seek_support.length; i++) {
+            if (players_without_seek_support[i] === this._name) {
+                can_seek = false;
+                break;
+            }
+        }
         return can_seek;
     },
 
@@ -675,19 +728,16 @@ Player.prototype = {
         return false;
     },
 
-    _runTimer: function(interval) {
+    _runTimer: function() {
         if (this._timeoutId != 0) {
             Mainloop.source_remove(this._timeoutId);
             this._timeoutId = 0;
         }
 
-        if (interval)
-            this._timerInterval = interval;
-
         if (this._playerStatus == 'Playing') {
             this._getPosition();
             this._timerTicker = 0;
-            this._timeoutId = Mainloop.timeout_add(Math.round(1000 / this._timerInterval), Lang.bind(this, this._runTimerCallback));
+            this._timeoutId = Mainloop.timeout_add(this._timerInterval, Lang.bind(this, this._runTimerCallback));
         }
     },
 
@@ -783,19 +833,6 @@ Player.prototype = {
     }
 
 }
-
-function PlayerInfo(){
-    this._init.apply(this, arguments);
-}
-
-PlayerInfo.prototype = {
-    __proto__: TrackInfo.prototype,
-
-    _init: function(player){
-        TrackInfo.prototype._init.call(this, "", "");
-        this.player = player;
-    }
-};
 
 function MediaPlayerLauncher(app, menu) {
     this._init(app, menu);
@@ -1181,7 +1218,7 @@ MyApplet.prototype = {
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem);
         //between these two separators will be the player MenuSection (position 3)
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem);
-        this._outputVolumeSection = new VolumeSlider(this, null, _("Volume"));
+        this._outputVolumeSection = new VolumeSlider(this, null, _("Volume"), null);
         this._outputVolumeSection.connect("values-changed", Lang.bind(this, this._outputValuesChanged));
         this._outputApplicationsMenu = new PopupMenu.PopupSubMenuMenuItem(_("Applications..."), true);
         this._selectOutputDeviceItem = new PopupMenu.PopupSubMenuMenuItem(_("Output device..."), true);
@@ -1194,7 +1231,7 @@ MyApplet.prototype = {
         this._selectOutputDeviceItem.actor.hide();
 
         this._inputSection = new PopupMenu.PopupMenuSection;
-        this._inputVolumeSection = new VolumeSlider(this, null, _("Microphone"));
+        this._inputVolumeSection = new VolumeSlider(this, null, _("Microphone"), null);
         this._selectInputDeviceItem = new PopupMenu.PopupSubMenuMenuItem(_("Input device..."), true);
 
         this._inputSection.addMenuItem(this._inputVolumeSection);
@@ -1220,13 +1257,7 @@ MyApplet.prototype = {
                 availablePlayers.push(app);
         }
 
-        //we call this instead of menu.removeAll(), because this would destroy the actors, but we need them, so use remove
-        let children = this._launchPlayerItem.menu._getMenuItems();
-        for(let i = 0; i < children.length; i++){
-            let item = children[i];
-            item.remove();
-            item.emit("destroy");
-        }
+        this._launchPlayerItem.menu.removeAll();
 
         if (availablePlayers.length > 0){
             for (var p = 0; p < availablePlayers.length; p++){
@@ -1244,12 +1275,11 @@ MyApplet.prototype = {
 
             if(this._playerSelector.actor.get_children()[0])
                 this._playerSelector.removeActor(this._playerSelector.actor.get_children()[0]);
-            this._playerSelector._children = [];
             this._playerSelector.menu.removeAll();
 
             //go through the players list and create the player info (icon + label)
             for(let i in this._players) {
-                let info = this._players[i]._playerInfo.actor;
+                let info = this._players[i].playerInfo;
                 //set it as the actor to the player selector if it is the active one, else add it to the menu to be chosen
                 if (this._activePlayer == i)
                     this._playerSelector.addActor(info);
@@ -1428,8 +1458,11 @@ MyApplet.prototype = {
     },
 
     registerSystrayIcons: function() {
-        for (let i = 0; i < support_seek.length; i++) {
-            Main.systrayManager.registerRole(support_seek[i], this.metadata.uuid);
+        for (let i = 0; i < players_with_seek_support.length; i++) {
+            Main.systrayManager.registerRole(players_with_seek_support[i], this.metadata.uuid);
+        }
+        for (let i = 0; i < players_without_seek_support.length; i++) {
+            Main.systrayManager.registerRole(players_without_seek_support[i], this.metadata.uuid);
         }
     },
 
