@@ -1,3 +1,15 @@
+cinnamon (2.5~5+git20150407+utopia1) unstable; urgency=low
+
+  * Git snapshot @  07 Apr 2015.
+
+ -- James Lu <glolol@overdrive.pw>  Tue, 07 Apr 2015 16:50:47 -0700
+
+cinnamon (2.5~4+git20150327+utopia1) unstable; urgency=medium
+
+  * Git snapshot @ 27 Mar 2015.
+
+ -- James Lu <glolol@overdrive.pw>  Fri, 27 Mar 2015 19:19:48 -0700
+
 cinnamon (2.5~3+git20150322+utopia1) unstable; urgency=medium
 
   * Git snapshot as of 22 Mar 2015.
