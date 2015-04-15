@@ -120,11 +120,9 @@ PopupBaseMenuItem.prototype = {
 
         if (activeChanged) {
             this.active = active;
-            if (active) {
-                this.actor.add_style_pseudo_class('active');
-                if (this.focusOnHover) this.actor.grab_key_focus();
-            } else
-                this.actor.remove_style_pseudo_class('active');
+            this.actor.change_style_pseudo_class('active', active);
+            if (this.focusOnHover && this.active) this.actor.grab_key_focus();
+
             this.emit('active-changed', active);
         }
     },
@@ -139,10 +137,7 @@ PopupBaseMenuItem.prototype = {
         this.actor.reactive = sensitive;
         this.actor.can_focus = sensitive;
 
-        if (sensitive)
-            this.actor.remove_style_pseudo_class('insensitive');
-        else
-            this.actor.add_style_pseudo_class('insensitive');
+        this.actor.change_style_pseudo_class('insensitive', !sensitive);
         this.emit('sensitive-changed', sensitive);
     },
 
@@ -152,7 +147,7 @@ PopupBaseMenuItem.prototype = {
     },
 
     // adds an actor to the menu item; @params can contain %span
-    // (column span; defaults to 1, -1 means "all the remaining width"),
+    // (column span; defaults to 1, -1 means "all the remaining width", 0 means "no new column after this actor"),
     // %expand (defaults to #false), and %align (defaults to
     // #St.Align.START)
     addActor: function(child, params) {
@@ -219,8 +214,14 @@ PopupBaseMenuItem.prototype = {
         for (let i = 0, col = 0; i < this._children.length; i++) {
             let child = this._children[i];
             let [min, natural] = child.actor.get_preferred_width(-1);
-            widths[col++] = natural;
-            if (child.span > 1) {
+
+            if (widths[col])
+                widths[col] += this._spacing + natural;
+            else
+                widths[col] = natural;
+
+            if (child.span > 0) {
+                col++;
                 for (let j = 1; j < child.span; j++)
                     widths[col++] = 0;
             }
@@ -307,6 +308,12 @@ PopupBaseMenuItem.prototype = {
             x = box.x1;
         else
             x = box.x2;
+
+        let cols;
+        //clone _columnWidths, if it exists, to be able to modify it without any impact
+        if (this._columnWidths instanceof Array)
+            cols = this._columnWidths.slice(0);
+
         // if direction is ltr, x is the right edge of the last added
         // actor, and it's constantly increasing, whereas if rtl, x is
         // the left edge and it decreases
@@ -316,16 +323,19 @@ PopupBaseMenuItem.prototype = {
 
             let [minWidth, naturalWidth] = child.actor.get_preferred_width(-1);
             let availWidth, extraWidth;
-            if (this._columnWidths) {
+            if (cols) {
                 if (child.span == -1) {
                     if (direction == St.TextDirection.LTR)
                         availWidth = box.x2 - x;
                     else
                         availWidth = x - box.x1;
+                } else if (child.span == 0) {
+                    availWidth = naturalWidth;
+                    cols[col] -= naturalWidth + this._spacing;
                 } else {
                     availWidth = 0;
                     for (let j = 0; j < child.span; j++)
-                        availWidth += this._columnWidths[col++];
+                        availWidth += cols[col++];
                 }
                 extraWidth = availWidth - naturalWidth;
             } else {
@@ -745,10 +755,7 @@ Switch.prototype = {
     },
 
     setToggleState: function(state) {
-        if (state)
-            this.actor.add_style_pseudo_class('checked');
-        else
-            this.actor.remove_style_pseudo_class('checked');
+        this.actor.change_style_pseudo_class('checked', state);
         this.state = state;
     },
 
@@ -810,6 +817,57 @@ PopupSwitchMenuItem.prototype = {
     }
 };
 
+/**
+ * #PopupIconMenuItem:
+ *
+ * This is a popup menu item displaying an icon and a text. The icon is
+ * displayed to the left of the text. #PopupImageMenuItem is a similar,
+ * deprecated item, that displays the icon to the right of the text, which is
+ * ugly in most cases. Do not use it. If you think you need to display the icon
+ * on the right, make your own menu item (by copy and pasting the code found
+ * below) because PopupImageMenuItem is deprecated and may disappear any time.
+ */
+function PopupIconMenuItem() {
+    this._init.apply(this, arguments);
+}
+
+PopupIconMenuItem.prototype = {
+    __proto__: PopupBaseMenuItem.prototype,
+
+    _init: function (text, iconName, iconType, params) {
+        PopupBaseMenuItem.prototype._init.call(this, params);
+
+        this.label = new St.Label({text: text});
+        this._icon = new St.Icon({ style_class: 'popup-menu-icon',
+            icon_name: iconName,
+            icon_type: iconType}); 
+        this.addActor(this._icon);
+        this.addActor(this.label);
+    },
+
+    setIconSymbolicName: function (iconName) {
+        this._icon = new St.Icon({ style_class: 'popup-menu-icon',
+            icon_name: iconName,
+            icon_type: St.IconType.SYMBOLIC});
+    },
+
+    setIconName: function (iconName) {
+        this._icon = new St.Icon({ style_class: 'popup-menu-icon',
+            icon_name: iconName,
+            icon_type: St.IconType.FULLCOLOR});
+    },
+
+    // Override columnWidths so that the popup menu doesn't separate the icon and the label
+    setColumnWidths: function() {
+        this._columnWidths = null;
+    },
+
+    getColumnWidths: function() {
+        return [];
+    }
+}
+
+// Deprecated. Do not use
 function PopupImageMenuItem() {
     this._init.apply(this, arguments);
 }
@@ -1554,10 +1612,7 @@ PopupSubMenuMenuItem.prototype = {
     },
 
     _subMenuOpenStateChanged: function(menu, open) {
-        if (open)
-            this.actor.add_style_pseudo_class('open');
-        else
-            this.actor.remove_style_pseudo_class('open');
+        this.actor.change_style_pseudo_class('open', open);
     },
 
     destroy: function() {

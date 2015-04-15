@@ -23,6 +23,7 @@
 
 #include "st-texture-cache.h"
 #include "st-private.h"
+#include "st-cogl-wrapper.h"
 #include <gtk/gtk.h>
 #include <string.h>
 #include <glib.h>
@@ -569,8 +570,6 @@ data_to_cogl_texture (const guchar *data,
                       int           rowstride,
                       gboolean      add_padding)
 {
-  ClutterBackend *backend = clutter_get_default_backend ();
-  CoglContext *ctx = clutter_backend_get_cogl_context (backend);
   CoglHandle texture, offscreen;
   CoglColor clear_color;
   guint size;
@@ -579,24 +578,15 @@ data_to_cogl_texture (const guchar *data,
   size = MAX (width, height);
 
   if (!add_padding || width == height)
-    return COGL_TEXTURE (cogl_texture_2d_new_from_data (ctx,
-                                                        width,
-                                                        height,
-                                                        has_alpha ? COGL_PIXEL_FORMAT_RGBA_8888 : COGL_PIXEL_FORMAT_RGB_888,
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                                        COGL_PIXEL_FORMAT_ANY,
-#endif
-                                                        rowstride,
-                                                        data,
-                                                        NULL));
+    return st_cogl_texture_new_from_data_wrapper (width, height,
+                                                  COGL_TEXTURE_NONE,
+                                                  has_alpha ? COGL_PIXEL_FORMAT_RGBA_8888 : COGL_PIXEL_FORMAT_RGB_888,
+                                                  COGL_PIXEL_FORMAT_ANY,
+                                                  rowstride, data);
 
-  texture = cogl_texture_2d_new_with_size (ctx,
-                                           size,
-                                           size
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                           ,COGL_PIXEL_FORMAT_ANY
-#endif
-                                           );
+  texture = st_cogl_texture_new_with_size_wrapper (size, size,
+                                                   COGL_TEXTURE_NO_SLICING,
+                                                   COGL_PIXEL_FORMAT_ANY);
 
   offscreen = cogl_offscreen_new_to_texture (texture);
 
@@ -609,16 +599,12 @@ data_to_cogl_texture (const guchar *data,
       cogl_object_unref (offscreen);
       g_clear_error (&error);
 
-      return COGL_TEXTURE (cogl_texture_2d_new_from_data (ctx,
-                                                          width,
-                                                          height,
-                                                          has_alpha ? COGL_PIXEL_FORMAT_RGBA_8888 : COGL_PIXEL_FORMAT_RGB_888,
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                                          COGL_PIXEL_FORMAT_ANY,
-#endif
-                                                          rowstride,
-                                                          data,
-                                                          NULL));
+      return st_cogl_texture_new_from_data_wrapper (width, height,
+                                                    COGL_TEXTURE_NONE,
+                                                    has_alpha ? COGL_PIXEL_FORMAT_RGBA_8888 : COGL_PIXEL_FORMAT_RGB_888,
+                                                    COGL_PIXEL_FORMAT_ANY,
+                                                    rowstride,
+                                                    data);
   }
 
   cogl_color_set_from_4ub (&clear_color, 0, 0, 0, 0);
@@ -1359,8 +1345,6 @@ create_faded_icon_cpu (StTextureCache *cache,
                                  void           *datap,
                                  GError        **error)
 {
-  ClutterBackend *backend = clutter_get_default_backend ();
-  CoglContext *ctx = clutter_backend_get_cogl_context (backend);
   CreateFadedIconData *data = datap;
   char *name;
   GdkPixbuf *pixbuf;
@@ -1441,16 +1425,12 @@ create_faded_icon_cpu (StTextureCache *cache,
         }
     }
 
-  texture = COGL_TEXTURE (cogl_texture_2d_new_from_data (ctx,
-                                                         width,
-                                                         height,
-                                                         have_alpha ? COGL_PIXEL_FORMAT_RGBA_8888 : COGL_PIXEL_FORMAT_RGB_888,
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                                         COGL_PIXEL_FORMAT_ANY,
-#endif
-                                                         rowstride,
-                                                         pixels,
-                                                         NULL));
+  texture = st_cogl_texture_new_from_data_wrapper (width, height,
+                                                   COGL_TEXTURE_NONE,
+                                                   have_alpha ? COGL_PIXEL_FORMAT_RGBA_8888 : COGL_PIXEL_FORMAT_RGB_888,
+                                                   COGL_PIXEL_FORMAT_ANY,
+                                                   rowstride,
+                                                   pixels);
   g_free (pixels);
   g_object_unref (pixbuf);
 

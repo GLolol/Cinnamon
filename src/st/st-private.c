@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "st-private.h"
+#include "st-cogl-wrapper.h"
 
 /**
  * _st_actor_get_preferred_width:
@@ -353,8 +354,6 @@ _st_set_text_from_style (ClutterText *text,
 CoglHandle
 _st_create_texture_material (CoglHandle src_texture)
 {
-  ClutterBackend *backend = clutter_get_default_backend ();
-  CoglContext *ctx = clutter_backend_get_cogl_context (backend);
   static CoglHandle texture_material_template = COGL_INVALID_HANDLE;
   CoglHandle material;
 
@@ -370,13 +369,11 @@ _st_create_texture_material (CoglHandle src_texture)
       static const guint8 white_pixel[] = { 0xff, 0xff, 0xff, 0xff };
       CoglHandle dummy_texture;
 
-      dummy_texture =
-        COGL_TEXTURE (cogl_texture_2d_new_from_data (ctx, 1, 1,
-                                                     COGL_PIXEL_FORMAT_RGBA_8888_PRE,
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                                     COGL_PIXEL_FORMAT_ANY,
-#endif
-                                                     4, white_pixel, NULL));
+      dummy_texture = st_cogl_texture_new_from_data_wrapper (1, 1,
+                                                             COGL_TEXTURE_NONE,
+                                                             COGL_PIXEL_FORMAT_RGBA_8888_PRE,
+                                                             COGL_PIXEL_FORMAT_ANY,
+                                                             4, white_pixel);
 
       texture_material_template = cogl_material_new ();
       cogl_material_set_layer (texture_material_template, 0, dummy_texture);
@@ -534,9 +531,6 @@ CoglHandle
 _st_create_shadow_material (StShadow   *shadow_spec,
                             CoglHandle  src_texture)
 {
-  ClutterBackend *backend = clutter_get_default_backend ();
-  CoglContext *ctx = clutter_backend_get_cogl_context (backend);
-
   static CoglHandle shadow_material_template = COGL_INVALID_HANDLE;
 
   CoglHandle  material;
@@ -563,14 +557,12 @@ _st_create_shadow_material (StShadow   *shadow_spec,
                             &width_out, &height_out, &rowstride_out);
   g_free (pixels_in);
 
-  texture = COGL_TEXTURE (cogl_texture_2d_new_from_data (ctx, width_out, height_out,
-                                                         COGL_PIXEL_FORMAT_A_8,
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                                         COGL_PIXEL_FORMAT_ANY,
-#endif
-                                                         rowstride_out,
-                                                         pixels_out,
-                                                         NULL));
+  texture = st_cogl_texture_new_from_data_wrapper (width_out, height_out,
+                                                   COGL_TEXTURE_NONE,
+                                                   COGL_PIXEL_FORMAT_A_8,
+                                                   COGL_PIXEL_FORMAT_A_8,
+                                                   rowstride_out,
+                                                   pixels_out);
 
   g_free (pixels_out);
 
@@ -599,8 +591,6 @@ CoglHandle
 _st_create_shadow_material_from_actor (StShadow     *shadow_spec,
                                        ClutterActor *actor)
 {
-  ClutterBackend *backend = clutter_get_default_backend ();
-  CoglContext *ctx = clutter_backend_get_cogl_context (backend);
   CoglHandle shadow_material = COGL_INVALID_HANDLE;
 
   if (CLUTTER_IS_TEXTURE (actor))
@@ -623,13 +613,9 @@ _st_create_shadow_material_from_actor (StShadow     *shadow_spec,
       if (width == 0 || height == 0)
         return COGL_INVALID_HANDLE;
 
-      buffer = COGL_TEXTURE (cogl_texture_2d_new_with_size (ctx,
-                                                            width,
-                                                            height
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                                            ,COGL_PIXEL_FORMAT_ANY
-#endif
-                                                            ));
+      buffer = st_cogl_texture_new_with_size_wrapper (width, height,
+                                                      COGL_TEXTURE_NO_SLICING,
+                                                      COGL_PIXEL_FORMAT_ANY);
 
       if (buffer == COGL_INVALID_HANDLE)
         return COGL_INVALID_HANDLE;

@@ -4,6 +4,8 @@
 
 #include "cinnamon-xfixes-cursor.h"
 
+#include "st.h"
+
 #include <clutter/x11/clutter-x11.h>
 #include <X11/extensions/Xfixes.h>
 
@@ -193,8 +195,6 @@ xfixes_cursor_hide (CinnamonXFixesCursor *xfixes_cursor)
 static void
 xfixes_cursor_reset_image (CinnamonXFixesCursor *xfixes_cursor)
 {
-  ClutterBackend *backend = clutter_get_default_backend ();
-  CoglContext *ctx = clutter_backend_get_cogl_context (backend);
   XFixesCursorImage *cursor_image;
   CoglHandle sprite = COGL_INVALID_HANDLE;
   guint8 *cursor_data;
@@ -233,16 +233,12 @@ xfixes_cursor_reset_image (CinnamonXFixesCursor *xfixes_cursor)
       free_cursor_data = TRUE;
     }
 
-  sprite = COGL_TEXTURE (cogl_texture_2d_new_from_data (ctx,
-                                                        cursor_image->width,
-                                                        cursor_image->height,
-                                                        CLUTTER_CAIRO_FORMAT_ARGB32,
-#if COGL_VERSION < COGL_VERSION_ENCODE (1, 18, 0)
-                                                        COGL_PIXEL_FORMAT_ANY,
-#endif
-                                                        cursor_image->width * 4, /* stride */
-                                                        cursor_data,
-                                                        NULL));
+  sprite = st_cogl_texture_new_from_data_wrapper (cursor_image->width, cursor_image->height,
+                                                  COGL_TEXTURE_NONE,
+                                                  CLUTTER_CAIRO_FORMAT_ARGB32,
+                                                  COGL_PIXEL_FORMAT_ANY,
+                                                  cursor_image->width * 4,
+                                                  cursor_data);
 
   if (free_cursor_data)
     g_free (cursor_data);

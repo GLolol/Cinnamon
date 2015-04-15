@@ -951,76 +951,21 @@ PanelCorner.prototype = {
     }
 };
 
-function IconMenuItem() {
-    this._init.apply(this, arguments);
-}
-
-IconMenuItem.prototype = {
-    __proto__: PopupMenu.PopupBaseMenuItem.prototype,
-
-    _init: function (text, iconName, params) {
-        PopupMenu.PopupBaseMenuItem.prototype._init.call(this, params);
- 
-        let table = new St.Table({ homogeneous: false,
-                                   reactive: true });
-
-        this.label = new St.Label({ text: text });
-        this._icon = new St.Icon({ icon_name: iconName,
-                                   icon_type: St.IconType.SYMBOLIC,
-                                   style_class: 'popup-menu-icon' });
-
-        table.add(this._icon,
-                  {row: 0, col: 0, col_span: 1, x_expand: false, x_align: St.Align.START});
-
-        table.add(this.label,
-                  {row: 0, col: 1, col_span: 1, x_align: St.Align.START});
-
-        this.label.set_margin_left(6.0)
-
-        this.addActor(table, { expand: true, span: 1, align: St.Align.START });
-    },
-
-    setIcon: function(name) {
-        this._icon.icon_name = name;
-    }
-};
-
-function SettingsLauncher(label, keyword, icon, menu) {
-    this._init(label, keyword, icon, menu);
+function SettingsLauncher(label, keyword, icon) {
+    this._init(label, keyword, icon);
 }
 
 SettingsLauncher.prototype = {
-    __proto__: PopupMenu.PopupBaseMenuItem.prototype,
+    __proto__: PopupMenu.PopupIconMenuItem.prototype,
 
-    _init: function (label, keyword, icon, menu) {
-        PopupMenu.PopupBaseMenuItem.prototype._init.call(this, {});
+    _init: function (label, keyword, icon) {
+        PopupMenu.PopupIconMenuItem.prototype._init.call(this, label, icon, St.IconType.SYMBOLIC);
 
-        this._menu = menu;
         this._keyword = keyword;
-        let table = new St.Table({ homogeneous: false,
-                                      reactive: true });
-
-        this.label = new St.Label({ text: label });
-        this._icon = new St.Icon({icon_name: icon, icon_type: St.IconType.SYMBOLIC,
-                                  style_class: 'popup-menu-icon' });
-
-        table.add(this._icon,
-                  {row: 0, col: 0, col_span: 1, x_expand: false, x_align: St.Align.START});
-
-        table.add(this.label,
-                  {row: 0, col: 1, col_span: 1, x_align: St.Align.START});
-
-        this.label.set_margin_left(6.0)
-
-        this.addActor(table, { expand: true, span: 1, align: St.Align.START });
+        this.connect('activate', function() {
+            Util.spawnCommandLine("cinnamon-settings " + this._keyword);
+        });
     },
-
-    activate: function (event) {
-    	this._menu.actor.hide();
-        Util.spawnCommandLine("cinnamon-settings " + this._keyword);
-        return true;
-    }
-
 };
 
 function populateSettingsMenu(menu, panelId) {
@@ -1051,34 +996,34 @@ function populateSettingsMenu(menu, panelId) {
 
     let panelSettingsSection = new PopupMenu.PopupSubMenuMenuItem(_("Modify panel ..."), true);
 
-    let menuItem = new IconMenuItem(_("Remove panel"), "list-remove");
+    let menuItem = new PopupMenu.PopupIconMenuItem(_("Remove panel"), "list-remove", St.IconType.SYMBOLIC);
     menuItem.activate = Lang.bind(menu, function() {
         Main.panelManager.removePanel(panelId);
     });
     panelSettingsSection.menu.addMenuItem(menuItem);
 
-    menu.addPanelItem = new IconMenuItem(_("Add panel"), "list-add");
+    menu.addPanelItem = new PopupMenu.PopupIconMenuItem(_("Add panel"), "list-add", St.IconType.SYMBOLIC);
     menu.addPanelItem.activate = Lang.bind(menu, function() {
         Main.panelManager.addPanelQuery();
         this.close();
     });
     panelSettingsSection.menu.addMenuItem(menu.addPanelItem);
 
-    menu.movePanelItem = new IconMenuItem(_("Move panel"), "move");
+    menu.movePanelItem = new PopupMenu.PopupIconMenuItem(_("Move panel"), "move", St.IconType.SYMBOLIC);
     menu.movePanelItem.activate = Lang.bind(menu, function() {
         Main.panelManager.movePanelQuery(this.panelId);
         this.close();
     });
     panelSettingsSection.menu.addMenuItem(menu.movePanelItem);
 
-    menu.copyAppletItem = new IconMenuItem(_("Copy applet configuration"), "edit-copy");
+    menu.copyAppletItem = new PopupMenu.PopupIconMenuItem(_("Copy applet configuration"), "edit-copy", St.IconType.SYMBOLIC);
     menu.copyAppletItem.activate = Lang.bind(menu, function() {
         AppletManager.copyAppletConfiguration(this.panelId);
         this.close();
     });
     panelSettingsSection.menu.addMenuItem(menu.copyAppletItem);
 
-    menu.pasteAppletItem = new IconMenuItem(_("Paste applet configuration"), "edit-paste");
+    menu.pasteAppletItem = new PopupMenu.PopupIconMenuItem(_("Paste applet configuration"), "edit-paste", St.IconType.SYMBOLIC);
     menu.pasteAppletItem.activate = Lang.bind(menu, function() {
         let dialog = new ModalDialog.ConfirmDialog(
                 _("Pasting applet configuration will remove all existing applets on this panel. DO you want to continue?") + "\n\n",
@@ -1089,7 +1034,7 @@ function populateSettingsMenu(menu, panelId) {
     });
     panelSettingsSection.menu.addMenuItem(menu.pasteAppletItem);
 
-    menu.clearAppletItem = new IconMenuItem(_("Clear all applets"), "edit-clear-all");
+    menu.clearAppletItem = new PopupMenu.PopupIconMenuItem(_("Clear all applets"), "edit-clear-all", St.IconType.SYMBOLIC);
     menu.clearAppletItem.activate = Lang.bind(menu, function() {
         let dialog = new ModalDialog.ConfirmDialog(
                 _("Are you sure you want to clear all applets on this panel?") + "\n\n",
@@ -1168,16 +1113,16 @@ PanelContextMenu.prototype = {
         this.actor.hide();
         this.panelId = panelId;
 
-        let applet_settings_item = new SettingsLauncher(_("Add applets to the panel"), "applets panel" + panelId, "list-add", this);
+        let applet_settings_item = new SettingsLauncher(_("Add applets to the panel"), "applets panel" + panelId, "list-add");
         this.addMenuItem(applet_settings_item);
 
-        let menuItem = new SettingsLauncher(_("Panel settings"), "panel " + panelId, "emblem-system", this);
+        let menuItem = new SettingsLauncher(_("Panel settings"), "panel " + panelId, "emblem-system");
         this.addMenuItem(menuItem);
 
-        let menuItem = new SettingsLauncher(_("Themes"), "themes", "applications-graphics", this);
+        let menuItem = new SettingsLauncher(_("Themes"), "themes", "applications-graphics");
         this.addMenuItem(menuItem);
 
-        let menuSetting = new SettingsLauncher(_("All settings"), "", "preferences-system", this);
+        let menuSetting = new SettingsLauncher(_("All settings"), "", "preferences-system");
         this.addMenuItem(menuSetting);
 
         populateSettingsMenu(this, panelId);
@@ -1391,15 +1336,9 @@ Panel.prototype = {
         this._settingsSignals.push(global.settings.connect("changed::panel-edit-mode", Lang.bind(this, this._onPanelEditModeChanged)));
         this._settingsSignals.push(global.settings.connect("changed::no-adjacent-panel-barriers", Lang.bind(this, this._updatePanelBarriers)));
 
-        /* Generate panelbox */
         this._leftPanelBarrier = 0;
         this._rightPanelBarrier = 0;
-        this.panelBox = new St.BoxLayout({ name: 'panelBox',
-                                           vertical: true });
-        Main.layoutManager.addChrome(this.panelBox, { addToWindowgroup: false });
-        this.panelBox.connect('allocation-changed', Lang.bind(this, this._updatePanelBarriers));
-        this.panelBox.add_actor(this.actor)
-
+        Main.layoutManager.addChrome(this.actor, { addToWindowgroup: false });
         this._moveResizePanel();
     },
 
@@ -1445,7 +1384,6 @@ Panel.prototype = {
         this._leftCorner.actor.destroy();
 
         this.actor.destroy();
-        this.panelBox.destroy();
 
         let i = this._settingsSignals.length;
         while (i--) {
@@ -1466,10 +1404,7 @@ Panel.prototype = {
      * Turns on/off the highlight of the panel
      */
     highlight: function(highlight) {
-        if (highlight)
-            this.actor.add_style_pseudo_class('highlight');
-        else
-            this.actor.remove_style_pseudo_class('highlight');
+        this.actor.change_style_pseudo_class('highlight', highlight);
     },
 
     isHideable: function() {
@@ -1527,9 +1462,9 @@ Panel.prototype = {
             noRight = noBarriers;
         }
 
-        if (this.panelBox.height) {
-            let panelTop = (this.bottomPosition ? this.monitor.y + this.monitor.height - this.panelBox.height : this.monitor.y);
-            let panelBottom = (this.bottomPosition ? this.monitor.y + this.monitor.height : this.monitor.y + this.panelBox.height);
+        if (this.actor.height) {
+            let panelTop = (this.bottomPosition ? this.monitor.y + this.monitor.height - this.actor.height : this.monitor.y);
+            let panelBottom = (this.bottomPosition ? this.monitor.y + this.monitor.height : this.monitor.y + this.actor.height);
 
             if (!noLeft) {
                 this._leftPanelBarrier = global.create_pointer_barrier(
@@ -1556,18 +1491,11 @@ Panel.prototype = {
 
     _onPanelEditModeChanged: function() {
         let old_mode = this._panelEditMode;
-        if (global.settings.get_boolean("panel-edit-mode")) {
-            this._panelEditMode = true;
-            this._leftBox.add_style_pseudo_class('dnd');
-            this._centerBox.add_style_pseudo_class('dnd');
-            this._rightBox.add_style_pseudo_class('dnd');
-        }
-        else {
-            this._panelEditMode = false;
-            this._leftBox.remove_style_pseudo_class('dnd');
-            this._centerBox.remove_style_pseudo_class('dnd');
-            this._rightBox.remove_style_pseudo_class('dnd');
-        }
+
+        this._panelEditMode = global.settings.get_boolean("panel-edit-mode");
+        this._leftBox.change_style_pseudo_class('dnd', this._panelEditMode);
+        this._centerBox.change_style_pseudo_class('dnd', this._panelEditMode);
+        this._rightBox.change_style_pseudo_class('dnd', this._panelEditMode);
 
         if (old_mode != this._panelEditMode) {
             this._processPanelAutoHide();
@@ -1628,7 +1556,7 @@ Panel.prototype = {
         if (this._hideable) {
             this._hidePanel();
         }
-        Main.layoutManager._chrome.modifyActorParams(this.panelBox, { affectsStruts: !this._hideable });
+        Main.layoutManager._chrome.modifyActorParams(this.actor, { affectsStruts: !this._hideable });
     },
 
     _moveResizePanel: function() {
@@ -1663,8 +1591,8 @@ Panel.prototype = {
         this.actor.set_height(panelHeight);
         this._processPanelAutoHide();
 
-        this.panelBox.set_size(this.monitor.width, panelHeight);
-        this.panelBox.set_position(this.monitor.x, this.bottomPosition ? this.monitor.y + this.monitor.height - panelHeight : this.monitor.y);
+        this.actor.set_size(this.monitor.width, panelHeight);
+        this.actor.set_position(this.monitor.x, this.bottomPosition ? this.monitor.y + this.monitor.height - panelHeight : this.monitor.y);
 
         // AppletManager might not be initialized yet
         if (AppletManager.appletsLoaded)
@@ -1790,6 +1718,8 @@ Panel.prototype = {
         childBox.y1 = allocHeight;
         childBox.y2 = allocHeight + cornerHeight;
         this._rightCorner.actor.allocate(childBox, flags);
+
+        this._updatePanelBarriers();
     },
     
     _clearTimers: function() {
@@ -1874,7 +1804,7 @@ Panel.prototype = {
         Tweener.addTween(this._leftCorner.actor, params);
         Tweener.addTween(this._rightCorner.actor, params);
 
-        Tweener.addTween(this.actor.get_parent(),
+        Tweener.addTween(this.actor,
                         { y: y,
                         time: animationTime,
                         transition: 'easeOutQuad',
@@ -1882,7 +1812,7 @@ Panel.prototype = {
                             // Force the layout manager to update the input region
                             Main.layoutManager._chrome.updateRegions()
 
-                            let height = Math.abs(this.actor.get_parent().y - origY);
+                            let height = Math.abs(this.actor.y - origY);
                             let y = bottomPosition? 0 : this.actor.height - height;
 
                             this.actor.set_clip(0, y, this.monitor.width, height);
@@ -1917,7 +1847,7 @@ Panel.prototype = {
         let animationTime = AUTOHIDE_ANIMATION_TIME;
         let y = this.bottomPosition ? this.monitor.y + this.monitor.height - 1 : this.monitor.y - height + 1;
         
-        Tweener.addTween(this.actor.get_parent(), { 
+        Tweener.addTween(this.actor, {
             y: y,
             time: animationTime,
             transition: 'easeOutQuad',
@@ -1925,7 +1855,7 @@ Panel.prototype = {
                 // Force the layout manager to update the input region
                 Main.layoutManager._chrome.updateRegions()
 
-                let height = Math.abs(this.actor.get_parent().y - targetY) + 1;
+                let height = Math.abs(this.actor.y - targetY) + 1;
                 let y = bottomPosition ? 0 : this.actor.height - height;
 
                 this.actor.set_clip(0, y, this.monitor.width, height);

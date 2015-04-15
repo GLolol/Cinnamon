@@ -1,3 +1,15 @@
+cinnamon (2.5.0+utopia1~git20150414) UNRELEASED; urgency=medium
+
+  * Git snapshot @ 14 Apr 2015.
+
+ -- James Lu <glolol@overdrive.pw>  Tue, 14 Apr 2015 17:06:11 -0700
+
+cinnamon (2.5.0) unstable; urgency=medium
+
+  * bump for development
+
+ -- Michael Webster <miketwebster@gmail.com>  Sat, 11 Apr 2015 08:37:01 -0400
+
 cinnamon (2.5~5+git20150407+utopia1) unstable; urgency=low
 
   * Git snapshot @  07 Apr 2015.
