@@ -1026,7 +1026,7 @@ function populateSettingsMenu(menu, panelId) {
     menu.pasteAppletItem = new PopupMenu.PopupIconMenuItem(_("Paste applet configuration"), "edit-paste", St.IconType.SYMBOLIC);
     menu.pasteAppletItem.activate = Lang.bind(menu, function() {
         let dialog = new ModalDialog.ConfirmDialog(
-                _("Pasting applet configuration will remove all existing applets on this panel. DO you want to continue?") + "\n\n",
+                _("Pasting applet configuration will remove all existing applets on this panel. Do you want to continue?") + "\n\n",
                 Lang.bind(this, function() {
                     AppletManager.pasteAppletConfiguration(this.panelId);
                 }));
@@ -1804,6 +1804,10 @@ Panel.prototype = {
         Tweener.addTween(this._leftCorner.actor, params);
         Tweener.addTween(this._rightCorner.actor, params);
 
+        this._leftBox.show();
+        this._centerBox.show();
+        this._rightBox.show();
+
         Tweener.addTween(this.actor,
                         { y: y,
                         time: animationTime,
@@ -1862,6 +1866,9 @@ Panel.prototype = {
             }),
             onComplete: Lang.bind(this, function() {
                 this.actor.remove_clip();
+                this._leftBox.hide();
+                this._centerBox.hide();
+                this._rightBox.hide();
             }),
             onUpdateParams: [y, this.bottomPosition]
         });

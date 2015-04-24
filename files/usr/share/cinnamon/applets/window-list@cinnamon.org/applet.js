@@ -94,15 +94,6 @@ AppMenuButtonRightClickMenu.prototype = {
         let itemMaximizeWindow = new PopupMenu.PopupMenuItem(mw.get_maximized() ? _("Unmaximize") : _("Maximize"));
         itemMaximizeWindow.connect('activate', Lang.bind(this, this._onMaximizeWindowActivate));
         
-        let itemMoveToLeftWorkspace = new PopupMenu.PopupMenuItem(_("Move to left workspace"));
-        itemMoveToLeftWorkspace.connect('activate', Lang.bind(this, this._onMoveToLeftWorkspace));
-        
-        let itemMoveToRightWorkspace = new PopupMenu.PopupMenuItem(_("Move to right workspace"));
-        itemMoveToRightWorkspace.connect('activate', Lang.bind(this, this._onMoveToRightWorkspace));
-        
-        let itemOnAllWorkspaces = new PopupMenu.PopupMenuItem(_("Visible on all workspaces"));
-        itemOnAllWorkspaces.connect('activate', Lang.bind(this, this._toggleOnAllWorkspaces));
-
         let itemRestoreOpacity = new PopupMenu.PopupMenuItem(_("Restore to full opacity"));
         itemRestoreOpacity.connect('activate', Lang.bind(this, this._onRestoreOpacity));
 
@@ -110,21 +101,31 @@ AppMenuButtonRightClickMenu.prototype = {
             itemRestoreOpacity.actor.hide()
         }
 
-        if (mw.is_on_all_workspaces()) {
-            itemOnAllWorkspaces.label.set_text(_("Only on this workspace"));
-            itemMoveToLeftWorkspace.actor.hide();
-            itemMoveToRightWorkspace.actor.hide();
-        } else {
-            itemOnAllWorkspaces.label.set_text(_("Visible on all workspaces"));
-            if (mw.get_workspace().get_neighbor(Meta.MotionDirection.LEFT) != mw.get_workspace())
-                itemMoveToLeftWorkspace.actor.show();
-            else
-                itemMoveToLeftWorkspace.actor.hide();
+        if (global.screen.n_workspaces > 1) {
+            if (mw.is_on_all_workspaces()) {
+                var itemOnAllWorkspaces = new PopupMenu.PopupMenuItem(_("Only on this workspace"));
+                itemOnAllWorkspaces.connect('activate', Lang.bind(this, this._toggleOnAllWorkspaces));
+            } else {
+                var itemOnAllWorkspaces = new PopupMenu.PopupMenuItem(_("Visible on all workspaces"));
+                itemOnAllWorkspaces.connect('activate', Lang.bind(this, this._toggleOnAllWorkspaces));
 
-            if (mw.get_workspace().get_neighbor(Meta.MotionDirection.RIGHT) != mw.get_workspace())
-                itemMoveToRightWorkspace.actor.show();
-            else
-                itemMoveToRightWorkspace.actor.hide();
+                if (mw.get_workspace().get_neighbor(Meta.MotionDirection.LEFT) != mw.get_workspace()) {
+                    var itemMoveToLeftWorkspace = new PopupMenu.PopupMenuItem(_("Move to left workspace"));
+                    itemMoveToLeftWorkspace.connect('activate', Lang.bind(this, this._onMoveToLeftWorkspace));
+                }
+
+                if (mw.get_workspace().get_neighbor(Meta.MotionDirection.RIGHT) != mw.get_workspace()) {
+                    var itemMoveToRightWorkspace = new PopupMenu.PopupMenuItem(_("Move to right workspace"));
+                    itemMoveToRightWorkspace.connect('activate', Lang.bind(this, this._onMoveToRightWorkspace));
+                }
+
+                var itemMoveToWorkspace = new PopupMenu.PopupSubMenuMenuItem(_("Move to another workspace ..."), true);
+                for (let i = 0; i < global.screen.n_workspaces; i ++) {
+                    itemMoveToWorkspace.menu.addAction(
+                            Main.workspace_names[i] ? Main.workspace_names[i] : Main._makeDefaultWorkspaceName(i),
+                            Lang.bind(this, this._moveToWorkspace, global.screen.get_workspace_by_index(i)));
+                }
+            }
         }
 
         let monitorItems = [];
@@ -146,6 +147,7 @@ AppMenuButtonRightClickMenu.prototype = {
             itemOnAllWorkspaces,
             itemMoveToLeftWorkspace,
             itemMoveToRightWorkspace,
+            itemMoveToWorkspace,
             new PopupMenu.PopupSeparatorMenuItem(),
             itemCloseAllWindows,
             itemCloseOtherWindows,
@@ -156,7 +158,8 @@ AppMenuButtonRightClickMenu.prototype = {
             itemCloseWindow
         ]);
         (this.orientation == St.Side.BOTTOM ? items : items.reverse()).forEach(function(item) {
-            this.addMenuItem(item);
+            if (item)
+                this.addMenuItem(item);
         }, this);
     },
 
@@ -220,25 +223,22 @@ AppMenuButtonRightClickMenu.prototype = {
         }
     },
 
-    _moveToWorkspace: function(direction){
+    _moveToWorkspace: function(event, workspace) {
         let metaWindow = this.metaWindow;
-        let workspace = metaWindow.get_workspace().get_neighbor(direction);
-        if (workspace) {
-            // The workspace change may cause this object to be destroyed
-            // in the middle of the function, so let the action be carried
-            // out a bit later.
-            Mainloop.timeout_add(0, function() {
-                metaWindow.change_workspace(workspace);
-            });
-        }
+        // The workspace change may cause this object to be destroyed
+        // in the middle of the function, so let the action be carried
+        // out a bit later.
+        Mainloop.idle_add(function() {
+            metaWindow.change_workspace(workspace);
+        });
     },
     
     _onMoveToLeftWorkspace: function(actor, event){
-        this._moveToWorkspace(Meta.MotionDirection.LEFT);
+        this._moveToWorkspace(null, this.metaWindow.get_workspace().get_neighbor(Meta.MotionDirection.LEFT));
     },
 
     _onMoveToRightWorkspace: function(actor, event){
-        this._moveToWorkspace(Meta.MotionDirection.RIGHT);
+        this._moveToWorkspace(null, this.metaWindow.get_workspace().get_neighbor(Meta.MotionDirection.RIGHT));
     },
 
     _toggleOnAllWorkspaces: function(actor, event) {
@@ -267,15 +267,15 @@ AppMenuButtonRightClickMenu.prototype = {
 
 };
 
-function AppMenuButton(applet, metaWindow, animation, orientation, panel_height, draggable, scrollable) {
-    this._init(applet, metaWindow, animation, orientation, panel_height, draggable, scrollable);
+function AppMenuButton(applet, metaWindow, animation, orientation, panel_height, draggable, scrollable, middleClickClose) {
+    this._init(applet, metaWindow, animation, orientation, panel_height, draggable, scrollable, middleClickClose);
 }
 
 AppMenuButton.prototype = {
 //    __proto__ : AppMenuButton.prototype,
 
     
-    _init: function(applet, metaWindow, animation, orientation, panel_height, draggable, scrollable) {
+    _init: function(applet, metaWindow, animation, orientation, panel_height, draggable, scrollable, middleClickClose) {
                
         this.actor = new St.Bin({ style_class: 'window-list-item-box',
 								  reactive: true,
@@ -369,8 +369,9 @@ AppMenuButton.prototype = {
         this.window_list = this.actor._delegate._applet._windows;
         this.alert_list = this.actor._delegate._applet._alertWindows;
         this.scroll_connector = null;
-        this.on_scroll_mode_changed(scrollable);
+        this.onScrollModeChanged(scrollable);
         this._needsAttention = false;
+        this.middleClickClose = middleClickClose;
     },
     
     on_panel_edit_mode_changed: function() {
@@ -379,7 +380,7 @@ AppMenuButton.prototype = {
         }
     }, 
 
-    on_scroll_mode_changed: function(scrollable) {
+    onScrollModeChanged: function(scrollable) {
         if (scrollable) {
             this.scroll_connector = this.actor.connect('scroll-event', Lang.bind(this, this._onScrollEvent));
         } else {
@@ -508,7 +509,7 @@ AppMenuButton.prototype = {
                 this.rightClickMenu.toggle();
             }
             this._windowHandle(false);
-        } else if (event.get_button() == 2)
+        } else if (event.get_button() == 2 && this.middleClickClose)
             this.metaWindow.delete(global.get_current_time());
         return true;
     },
@@ -935,7 +936,12 @@ MyApplet.prototype = {
             this.settings.bindProperty(Settings.BindingDirection.IN,
                                        "enable-scrolling",
                                        "scrollable",
-                                       this.on_enable_scroll_changed,
+                                       this.onEnableScrollChanged,
+                                       null);
+            this.settings.bindProperty(Settings.BindingDirection.IN,
+                                       "middle-click-close",
+                                       "middleClickClose",
+                                       this.onMiddleClickCloseChanged,
                                        null);
 
             this.myactorbox = new MyAppletBox(this);
@@ -1049,15 +1055,26 @@ MyApplet.prototype = {
         }
     },
 
-    on_enable_scroll_changed: function() {
+    onEnableScrollChanged: function() {
         for (let i = 0; i < this._windows.length; i++) {
-            this._windows[i].on_scroll_mode_changed(this.scrollable);
+            this._windows[i].onScrollModeChanged(this.scrollable);
         }
 
         for (let i = 0; i < this._alertWindows.length; i++) {
-            this._alertWindows[i].on_scroll_mode_changed(this.scrollable);
+            this._alertWindows[i].onScrollModeChanged(this.scrollable);
         }
     },
+
+    onMiddleClickCloseChanged: function() {
+        for (let i = 0; i < this._windows.length; i++) {
+            this._windows[i].middleClickClose = this.middleClickClose;
+        }
+
+        for (let i = 0; i < this._alertWindows.length; i++) {
+            this._alertWindows[i].middleClickClose = this.middleClickClose;
+        }
+    },
+
 
     on_applet_clicked: function(event) {
     },
@@ -1073,7 +1090,7 @@ MyApplet.prototype = {
                     this._alertWindows = this._alertWindows.filter(function(alertWindow) {
                         return alertWindow.metaWindow != window; // we don't want duplicates
                     }, this);
-                    let alertButton = new AppMenuButton(this, window, true, this.orientation, this._panelHeight, false, this.scrollable);
+                    let alertButton = new AppMenuButton(this, window, true, this.orientation, this._panelHeight, false, this.scrollable, this.middleClickClose);
                     this._alertWindows.push(alertButton);
                     this.calculate_alert_positions();
                 }
@@ -1221,7 +1238,7 @@ MyApplet.prototype = {
             }
         }
 
-        let appbutton = new AppMenuButton(this, metaWindow, true, this.orientation, this._panelHeight, true, this.scrollable);
+        let appbutton = new AppMenuButton(this, metaWindow, true, this.orientation, this._panelHeight, true, this.scrollable, this.middleClickClose);
         this._windows.push(appbutton);
         this.myactor.add(appbutton.actor);
         if (global.screen.get_active_workspace() != metaWindow.get_workspace())
