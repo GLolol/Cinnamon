@@ -1,4 +1,11 @@
-cinnamon (2.5.0+utopia1~git20150414) UNRELEASED; urgency=medium
+cinnamon (2.5.0+utopia2~git20150423) unstable; urgency=medium
+
+  * Git snapshot @ 23 Apr 2015.
+  * cs_keyboard: stretch scroll boxes to fill entire window screen.
+
+ -- James Lu <glolol1@hotmail.com>  Thu, 23 Apr 2015 20:26:23 -0700
+
+cinnamon (2.5.0+utopia1~git20150414) unstable; urgency=medium
 
   * Git snapshot @ 14 Apr 2015.
 
