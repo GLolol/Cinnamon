@@ -77,7 +77,6 @@ STANDALONE_MODULES = [
     [_("Firewall"),                      "gufw",                         "cs-firewall",        "admin",          _("firewall, block, filter, programs")],
     [_("Languages"),                     "mintlocale",                   "cs-language",        "prefs",          _("language, install, foreign")],
     [_("Login Window"),                  "gksu /usr/sbin/mdmsetup",      "cs-login",           "admin",          _("login, mdm, gdm, manager, user, password, startup, switch")],
-    [_("Startup Applications"),          "cinnamon-session-properties",  "cs-startup-programs","prefs",          _("startup, programs, boot, init, session")],
     [_("Driver Manager"),                "mintdrivers",                  "cs-drivers",         "admin",          _("video, driver, wifi, card, hardware, proprietary, nvidia, radeon, nouveau, fglrx")],
     [_("Software Sources"),              "mintsources",                  "cs-sources",         "admin",          _("ppa, repository, package, source, download")],
     [_("Users and Groups"),              "cinnamon-settings-users",      "cs-user-accounts",   "admin",          _("user, users, account, accounts, group, groups, password")],
@@ -133,13 +132,27 @@ class MainWindow:
 
     def maybe_resize(self, sidePage):
         m, n = self.content_box.get_preferred_size()
+
+        # Resize horizontally if the module is wider than the window
         use_width = WIN_WIDTH
         if n.width > WIN_WIDTH:
             use_width = n.width
+
+        # Resize vertically depending on the height requested by the module
+        use_height = WIN_HEIGHT
         if not sidePage.size:
-            self.window.resize(use_width, n.height + self.bar_heights + WIN_H_PADDING)
-        elif sidePage.size > -1:
-            self.window.resize(use_width, sidePage.size + self.bar_heights + WIN_H_PADDING)
+            # No height requested, resize vertically if the module is taller than the window
+            if n.height > WIN_HEIGHT:
+                use_height = n.height + self.bar_heights + WIN_H_PADDING
+            #self.window.resize(use_width, n.height + self.bar_heights + WIN_H_PADDING)
+        elif sidePage.size > 0:
+            # Height hardcoded by the module
+            use_height = sidePage.size + self.bar_heights + WIN_H_PADDING
+        elif sidePage.size == -1:
+            # Module requested the window to fit it (i.e. shrink the window if necessary)
+            use_height = n.height + self.bar_heights + WIN_H_PADDING
+
+        self.window.resize(use_width, use_height)
 
     def deselect(self, cat):
         for key in self.side_view.keys():
@@ -168,6 +181,8 @@ class MainWindow:
         self.content_box_sw.show_all()
         self.button_back = self.builder.get_object("button_back")
         self.button_back.set_tooltip_text(_("Back to all settings"))
+        button_image = self.builder.get_object("image1")
+        button_image.props.icon_size = Gtk.IconSize.MENU
 
         self.stack_switcher = self.builder.get_object("stack_switcher")
         # Set stack to random thing and make opacity 0 so that the heading bar

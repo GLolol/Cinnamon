@@ -47,6 +47,7 @@ CATEGORIES = [
         [_("Positioning"),          "win-position",     "windows",      None],
         [_("Tiling and Snapping"),  "win-tiling",       "windows",      None],
         [_("Inter-workspace"),      "win-workspaces",   "windows",      None],
+        [_("Inter-monitor"),        "win-monitors",     "windows",      None],
     [_("Workspaces"),       "workspaces",       None,       "display"],
         [_("Direct Navigation"),    "ws-navi",          "workspaces",   None],
     [_("System"),           "system",           None,       "preferences-system"],
@@ -124,6 +125,11 @@ KEYBINDINGS = [
     [_("Move window to workspace 10"), MUFFIN_KEYBINDINGS_SCHEMA, "move-to-workspace-10", "win-workspaces"],
     [_("Move window to workspace 11"), MUFFIN_KEYBINDINGS_SCHEMA, "move-to-workspace-11", "win-workspaces"],
     [_("Move window to workspace 12"), MUFFIN_KEYBINDINGS_SCHEMA, "move-to-workspace-12", "win-workspaces"],
+    #Windows - Monitor-related
+    [_("Move window to left monitor"), MUFFIN_KEYBINDINGS_SCHEMA, "move-to-monitor-left", "win-monitors"],
+    [_("Move window to right monitor"), MUFFIN_KEYBINDINGS_SCHEMA, "move-to-monitor-right", "win-monitors"],
+    [_("Move window to up monitor"), MUFFIN_KEYBINDINGS_SCHEMA, "move-to-monitor-up", "win-monitors"],
+    [_("Move window to down monitor"), MUFFIN_KEYBINDINGS_SCHEMA, "move-to-monitor-down", "win-monitors"],
     # Workspaces
     [_("Switch to left workspace"), MUFFIN_KEYBINDINGS_SCHEMA, "switch-to-workspace-left", "workspaces"],
     [_("Switch to right workspace"), MUFFIN_KEYBINDINGS_SCHEMA, "switch-to-workspace-right", "workspaces"],
@@ -282,7 +288,6 @@ class Module:
             right_vbox.pack_start(kb_name_scroller, True, True, 2)
             right_vbox.pack_start(entry_scroller, True, True, 2)
             kb_name_scroller.set_property('min-content-height', 150)
-            entry_scroller.set_property('min-content-height', 100)
             self.cat_tree = Gtk.TreeView.new()
             self.kb_tree = Gtk.TreeView.new()
             self.entry_tree = Gtk.TreeView.new()
@@ -298,7 +303,7 @@ class Module:
             kb_name_scroller.add(self.kb_tree)
             kb_name_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
             entry_scroller.add(self.entry_tree)
-            entry_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+            entry_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
 
             buttonbox = Gtk.ButtonBox.new(Gtk.Orientation.HORIZONTAL)
             self.add_custom_button = Gtk.Button.new_with_label(_("Add custom shortcut"))

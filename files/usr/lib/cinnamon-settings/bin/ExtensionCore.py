@@ -11,6 +11,7 @@ from gi.repository import Gio, Gtk, GObject, Gdk, GdkPixbuf, Pango, GLib
 import dbus
 import cgi
 import subprocess
+import gettext
 
 home = os.path.expanduser("~")
 
@@ -36,7 +37,7 @@ class ExtensionSidePage (SidePage):
     SORT_REMOVABLE = 4
 
     def __init__(self, name, icon, keywords, content_box, collection_type, module=None):
-        SidePage.__init__(self, name, icon, keywords, content_box, -1, module=module)
+        SidePage.__init__(self, name, icon, keywords, content_box, module=module)
         self.collection_type = collection_type
         self.themes = collection_type == "theme"
         self.icons = []
@@ -1189,9 +1190,10 @@ Please contact the developer.""")
                             json_data=open("%s/%s/metadata.json" % (directory, extension)).read()
                             setting_type = 0
                             data = json.loads(json_data)
+
                             extension_uuid = data["uuid"]
-                            extension_name = data["name"]
-                            extension_description = data["description"]
+                            extension_name = XletSettings.translate(data["uuid"], data["name"])
+                            extension_description = XletSettings.translate(data["uuid"], data["description"])
                             try: extension_max_instances = int(data["max-instances"])
                             except KeyError: extension_max_instances = 1
                             except ValueError:
@@ -1337,7 +1339,7 @@ Please contact the developer.""")
                             if os.path.exists(os.path.join(path, "thumbnail.png")):
                                 icon_path = os.path.join(path, "thumbnail.png")
                             else:
-                                icon_path = "/usr/lib/cinnamon-settings/data/icons/themes.svg"
+                                icon_path = "/usr/share/cinnamon/theme/thumbnail-generic.png"
                             size = 60 * self.window.get_scale_factor()
                             img = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_path, -1, size)
 

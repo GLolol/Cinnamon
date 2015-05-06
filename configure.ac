@@ -9,7 +9,7 @@ AC_CONFIG_AUX_DIR([config])
 AC_SUBST([PACKAGE_NAME], ["$PACKAGE_NAME"])
 AC_SUBST([PACKAGE_VERSION], ["$PACKAGE_VERSION"])
 
-AM_INIT_AUTOMAKE([1.11 no-dist-gzip dist-xz tar-ustar foreign])
+AM_INIT_AUTOMAKE([1.11 no-dist-gzip dist-xz tar-ustar foreign subdir-objects])
 AM_MAINTAINER_MODE([enable])
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
@@ -61,11 +61,11 @@ fi
 
 AM_CONDITIONAL(BUILD_RECORDER, $build_recorder)
 
-CLUTTER_MIN_VERSION=1.7.5
-GOBJECT_INTROSPECTION_MIN_VERSION=0.10.1
+CLUTTER_MIN_VERSION=1.10.0
+GOBJECT_INTROSPECTION_MIN_VERSION=0.9.2
 GJS_MIN_VERSION=2.3.1
-MUFFIN_MIN_VERSION=1.9.1
-GTK_MIN_VERSION=3.0.0
+MUFFIN_MIN_VERSION=2.4.0
+GTK_MIN_VERSION=3.9.12
 GIO_MIN_VERSION=2.29.10
 POLKIT_MIN_VERSION=0.100
 STARTUP_NOTIFICATION_MIN_VERSION=0.11
@@ -106,11 +106,11 @@ AC_CHECK_FUNCS(JS_NewGlobalObject XFixesCreatePointerBarrier)
 CFLAGS=$saved_CFLAGS
 LIBS=$saved_LIBS
 
-PKG_CHECK_MODULES(ST, clutter-1.0 gtk+-3.0 libcroco-0.6 >= 0.6.2 cinnamon-desktop >= 1.0.0 x11)
+PKG_CHECK_MODULES(ST, clutter-1.0 gtk+-3.0 libcroco-0.6 >= 0.6.2 cinnamon-desktop >= 2.4.0 x11)
 PKG_CHECK_MODULES(GDMUSER, dbus-glib-1 gtk+-3.0)
 PKG_CHECK_MODULES(TRAY, gtk+-3.0)
 PKG_CHECK_MODULES(GVC, libpulse libpulse-mainloop-glib gobject-2.0)
-PKG_CHECK_MODULES(DESKTOP_SCHEMAS, cinnamon-desktop >= 1.0.0)
+PKG_CHECK_MODULES(DESKTOP_SCHEMAS, cinnamon-desktop >= 2.4.0)
 
 AC_MSG_CHECKING([for bluetooth support])
 PKG_CHECK_EXISTS([gnome-bluetooth-1.0 >= 3.1.0],
@@ -193,6 +193,12 @@ AC_ARG_ENABLE(jhbuild-wrapper-script,
   AS_HELP_STRING([--jhbuild-wrapper-script=yes],[Make "cinnamon" script work for jhbuild]),,enable_jhbuild_wrapper_script=no)
 AM_CONDITIONAL(USE_JHBUILD_WRAPPER_SCRIPT, test "x$enable_jhbuild_wrapper_script" = xyes)
 
+AC_ARG_ENABLE([gtk-doc],
+  AC_HELP_STRING([--enable-gtk-doc],
+                 [use gtk-doc to build documentation [[default=yes]]]),,
+  enable_gtk_doc=yes)
+
+
 AC_MSG_CHECKING([location of system Certificate Authority list])
 AC_ARG_WITH(ca-certificates,
             [AC_HELP_STRING([--with-ca-certificates=@<:@path@:>@],
@@ -221,10 +227,18 @@ AC_SUBST(CINNAMON_SYSTEM_CA_FILE,["$with_ca_certificates"])
 BROWSER_PLUGIN_DIR="${BROWSER_PLUGIN_DIR:-"\${libdir}/mozilla/plugins"}"
 AC_ARG_VAR([BROWSER_PLUGIN_DIR],[Where to install the plugin to])
 
+GTK_DOC_CHECK([1.15], [--flavour no-tmpl])
 AC_CONFIG_FILES([
   Makefile
   data/Makefile
   data/icons/Makefile
+  docs/Makefile
+  docs/reference/Makefile
+  docs/reference/cinnamon/Makefile
+  docs/reference/cinnamon/cinnamon-docs.sgml
+  docs/reference/cinnamon-js/Makefile
+  docs/reference/st/Makefile
+  docs/reference/st/cinnamon-st-docs.sgml
   js/Makefile
   js/misc/config.js
   src/Makefile

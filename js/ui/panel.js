@@ -7,6 +7,7 @@ const Mainloop = imports.mainloop;
 const Pango = imports.gi.Pango;
 const Cinnamon = imports.gi.Cinnamon;
 const St = imports.gi.St;
+
 const PopupMenu = imports.ui.popupMenu;
 const Main = imports.ui.main;
 const Tweener = imports.ui.tweener;
@@ -89,15 +90,15 @@ function _unpremultiply(color) {
                                blue: blue, alpha: color.alpha });
 };
 
-/* checkPanelUpgrade:
+/**
+ * checkPanelUpgrade:
  *
- *Run from main, prior to PanelManager being initialized
+ * Run from main, prior to PanelManager being initialized
  * this handles the one-time transition between panel implementations
  * to make this transition invisible to the user.  We will evaluate the
  * desktop-layout key, and pre-set applets-enabled and panels-enabled
  * appropriately.
  */
-
 function checkPanelUpgrade()
 {
     let oldLayout = global.settings.get_string("desktop-layout");
@@ -138,7 +139,7 @@ function checkPanelUpgrade()
 }
 
 /**
- * PanelManager
+ * #PanelManager
  * 
  * @short_description: Manager of Cinnamon panels
  *
@@ -363,6 +364,21 @@ PanelManager.prototype = {
                 return this.panels[i];
         }
         return null;
+    },
+
+    /**
+     * updatePanelsVisibility:
+     *
+     * Prompts every panel to update its visibility (show/hide). This is used
+     * by WindowManager after window map/tile/etc animations, and after popup
+     * menus close.
+     */
+    updatePanelsVisibility: function() {
+        for (let i in this.panels) {
+             if (!this.panels[i])
+                 continue;
+             this.panels[i]._updatePanelVisibility();
+        }
     },
 
     getAdjacentPanel: function(currentPanelObj, direction) {
@@ -599,8 +615,7 @@ PanelManager.prototype = {
 } 
 
 /**
- * PanelDummy
- * 
+ * #PanelDummy
  * @short_description: Dummy panels for users to select new position of panel
  *
  * #PanelDummy creates some boxes at possible panel locations for users to 
@@ -962,9 +977,9 @@ SettingsLauncher.prototype = {
         PopupMenu.PopupIconMenuItem.prototype._init.call(this, label, icon, St.IconType.SYMBOLIC);
 
         this._keyword = keyword;
-        this.connect('activate', function() {
+        this.connect('activate', Lang.bind(this, function() {
             Util.spawnCommandLine("cinnamon-settings " + this._keyword);
-        });
+        }));
     },
 };
 
@@ -1048,46 +1063,6 @@ function populateSettingsMenu(menu, panelId) {
 
     menu.addMenuItem(panelSettingsSection);
 
-    // Auto-hide Panel
-    let values = global.settings.get_strv(PANEL_AUTOHIDE_KEY);
-    let property;
-    for (let i = 0; i < values.length; i++){
-        if (values[i].split(":")[0]==panelId){
-            property=values[i].split(":")[1];
-            break;
-        }
-    }
-    if (!property){
-        property = DEFAULT_VALUES[PANEL_AUTOHIDE_KEY];
-        values.push(this.panelId + ":" + property);
-        global.settings.set_strv(PANEL_AUTOHIDE_KEY, values);
-    }
-    let autoHidePanel = new PopupMenu.PopupSwitchMenuItem(_("Auto-hide panel"), property == "true");
-    autoHidePanel.connect('toggled', function(item) {
-        let values = global.settings.get_strv(PANEL_AUTOHIDE_KEY);
-        let property;
-        for (let i = 0; i < values.length; i++){
-            if (values[i].split(":")[0] == panelId){
-                values[i] = panelId + ":" + (item.state ? "true" : "false");
-                break;
-            }
-        }
-        global.settings.set_strv(PANEL_AUTOHIDE_KEY, values);
-    });
-
-    menu.addMenuItem(autoHidePanel);
-    global.settings.connect('changed::' + PANEL_AUTOHIDE_KEY, function() {
-        let values = global.settings.get_strv(PANEL_AUTOHIDE_KEY);
-        let property;
-        for (let i = 0; i < values.length; i++){
-            if (values[i].split(":")[0]==panelId){
-                property=values[i].split(":")[1];
-                break;
-            }
-        }
-        autoHidePanel.setToggleState(property == "true");
-    });
-
     // Panel Edit mode
     let editMode = global.settings.get_boolean("panel-edit-mode");
     let panelEditMode = new PopupMenu.PopupSwitchMenuItem(_("Panel edit mode"), editMode);
@@ -1158,7 +1133,6 @@ PanelZoneDNDHandler.prototype = {
         this._panelZone._delegate = this;
         this._dragPlaceholder = null;
         this._dragPlaceholderPos = -1;
-        this._animatingPlaceholdersCount = 0;
     },
 
     handleDragOver: function(source, actor, x, y, time) {
@@ -1181,11 +1155,6 @@ PanelZoneDNDHandler.prototype = {
             if (appletPos != -1 && pos == appletPos) {
                 if (this._dragPlaceholder) {
                     this._dragPlaceholder.animateOutAndDestroy();
-                    this._animatingPlaceholdersCount++;
-                    this._dragPlaceholder.actor.connect('destroy',
-                        Lang.bind(this, function() {
-                            this._animatingPlaceholdersCount--;
-                        }));
                 }
                 this._dragPlaceholder = null;
 
@@ -1247,7 +1216,25 @@ PanelZoneDNDHandler.prototype = {
     }
 }
 
-
+/**
+ * #Panel:
+ * @panelId (int): the id of the panel
+ * @monitorIndex (int): the index of the monitor containing the panel
+ * @monitor (Meta.Rectangle): the geometry (bounding box) of the monitor
+ * @bottomPosition (boolean): whether the panel is at the bottom of the screen
+ * @actor (Cinnamon.GenericContainer): the actor of the panel
+ * @scaleMode (boolean): whether the applets should scale with the panel
+ *
+ * @_leftBox (St.BoxLayout): the box containing all the applets in the left region
+ * @_centerBox (St.BoxLayout): the box containing all the applets in the center region
+ * @_rightBox (St.BoxLayout): the box containing all the applets in the right region
+ * @_hidden (boolean): whether the panel is currently hidden
+ * @_disabled (boolean): whether the panel is disabled
+ * @_panelEditMode (boolean): whether the panel edit mode is on
+ * @_context_menu (Panel.PanelContextMenu): the context menu of the panel
+ *
+ * This represents a panel on the screen.
+ */
 function Panel(id, monitorIndex, bottomPosition) {
     this._init(id, monitorIndex, bottomPosition);
 }
@@ -1262,10 +1249,7 @@ Panel.prototype = {
     	this._hidden = false;
         this._disabled = false;
         this._panelEditMode = false;
-        this._hidetime = 0;
-        this._hideable = this._getProperty(PANEL_AUTOHIDE_KEY, "b")
-        this._hideTimer = 0;
-        this._showTimer = 0;
+        this._autohideSettings = this._getProperty(PANEL_AUTOHIDE_KEY, "s");
         this._themeFontSize = null;
         this._destroyed = false;
         this._settingsSignals = [];
@@ -1288,7 +1272,7 @@ Panel.prototype = {
         this._centerBox = new St.BoxLayout({ name: 'panelCenter' });
         this.actor.add_actor(this._centerBox);
         this._centerBoxDNDHandler = new PanelZoneDNDHandler(this._centerBox);
-        this._rightBox = new St.BoxLayout({ name: 'panelRight' });
+        this._rightBox = new St.BoxLayout({ name: 'panelRight', align_end: true});
         this.actor.add_actor(this._rightBox);
         this._rightBoxDNDHandler = new PanelZoneDNDHandler(this._rightBox);
 
@@ -1307,10 +1291,6 @@ Panel.prototype = {
             this.actor.add_style_class_name('panel-bottom')
         else
             this.actor.add_style_class_name('panel-top')
-
-        /* right */
-        this._status_area_order = [];
-        this._status_area_cinnamon_implementation = {};
 
         this._context_menu = new PanelContextMenu(this, bottomPosition ? St.Side.BOTTOM: St.Side.TOP, id);
         this._menus.addMenu(this._context_menu);
@@ -1336,12 +1316,12 @@ Panel.prototype = {
         this._settingsSignals.push(global.settings.connect("changed::panel-edit-mode", Lang.bind(this, this._onPanelEditModeChanged)));
         this._settingsSignals.push(global.settings.connect("changed::no-adjacent-panel-barriers", Lang.bind(this, this._updatePanelBarriers)));
 
+
         this._leftPanelBarrier = 0;
         this._rightPanelBarrier = 0;
         Main.layoutManager.addChrome(this.actor, { addToWindowgroup: false });
         this._moveResizePanel();
     },
-
 
     /**
      * updatePosition:
@@ -1362,6 +1342,11 @@ Panel.prototype = {
                     this._xPosition = this._xpos;
                     this._shiftActor();
         }));
+
+        if (this.bottomPosition)
+            this.actor.set_style_class_name('panel-bottom')
+        else
+            this.actor.set_style_class_name('panel-top')
     },
 
     /**
@@ -1390,6 +1375,19 @@ Panel.prototype = {
             global.settings.disconnect(this._settingsSignals[i]);
         }
 
+        if (this._focusChangedSignal) {
+            global.display.disconnect(this._focusChangedSignal);
+            this._focusChangedSignal = undefined;
+            if (this._focusWindow) {
+                this._focusWindow.disconnect(this._focusSignal1);
+                this._focusWindow.disconnect(this._focusSignal2);
+                this._focusWindow = undefined;
+                this.signal1 = undefined;
+                this.signal2 = undefined;
+            }
+        }
+
+
         this._menus = null;
         this.monitor = null;
 
@@ -1407,8 +1405,13 @@ Panel.prototype = {
         this.actor.change_style_pseudo_class('highlight', highlight);
     },
 
+    /**
+     * isHideable:
+     *
+     * Returns: whether the panel can be hidden (auto-hide or intellihide)
+     */
     isHideable: function() {
-        return this._hideable;
+        return this._autohideSettings != "true";
     },
     
     /**
@@ -1442,6 +1445,27 @@ Panel.prototype = {
         default:
             return property;
         }
+    },
+
+    handleDragOver: function(source, actor, x, y, time) {
+        this._enterPanel();
+        if (this._dragShowId > 0)
+            Mainloop.source_remove(this._dragShowId);
+
+        let leaveIfOut = Lang.bind(this, function() {
+            let [x, y, whatever] = global.get_pointer();
+            this.actor.sync_hover();
+            if (this.actor.x < x && x < this.actor.x + this.actor.width &&
+                this.actor.y < y && y < this.actor.y + this.actor.height) {
+                return true;
+            } else {
+                this._leavePanel();
+                return false;
+            }
+        });
+
+        this._dragShowId = Mainloop.timeout_add(500, leaveIfOut);
+        return DND.DragMotionResult.NO_DROP;
     },
 
     _updatePanelBarriers: function() {
@@ -1541,24 +1565,64 @@ Panel.prototype = {
         }
         return;
     },
-        
-    _processPanelAutoHide: function() {  
-        this._hideable = this._getProperty(PANEL_AUTOHIDE_KEY, "b") && !this._panelEditMode;
-        // Show a glimpse of the panel irrespective of the new setting,
-        // in order to force a region update.
-        // Techically, this should not be necessary if the function is called
-        // when auto-hide is in effect and is not changing, but experience
-        // shows that not flashing the panels may lead to "phantom panels"
-        // where the panels should be if auto-hide was on.
-        this._hidePanel(true); // force hide
-        this._showPanel();
 
-        if (this._hideable) {
-            this._hidePanel();
+    _onFocusChanged: function() {
+        if (global.display.focus_window &&
+            this._focusWindow == global.display.focus_window.get_compositor_private())
+            return;
+
+        if (this._focusWindow && this._focusSignal1) {
+            this._focusWindow.disconnect(this._focusSignal1);
+            this._focusWindow.disconnect(this._focusSignal2);
+            this._focusSignal1 = undefined;
+            this._focusSignal2 = undefined;
         }
-        Main.layoutManager._chrome.modifyActorParams(this.actor, { affectsStruts: !this._hideable });
+
+        if (!global.display.focus_window)
+            return;
+
+        this._focusWindow = global.display.focus_window.get_compositor_private();
+        this._focusSignal1 = this._focusWindow.connect("position-changed",
+                Lang.bind(this, this._updatePanelVisibility));
+        this._focusSignal2 = this._focusWindow.connect("size-changed",
+                Lang.bind(this, this._updatePanelVisibility));
+        this._updatePanelVisibility();
     },
 
+    _processPanelAutoHide: function() {  
+        this._autohideSettings = this._getProperty(PANEL_AUTOHIDE_KEY, "s");
+
+        if (this._autohideSettings == "intel") {
+            if (!this._focusChangedSignal) {
+                this._focusChangedSignal = global.display.connect("notify::focus-window",
+                        Lang.bind(this, this._onFocusChanged));
+                this._onFocusChanged();
+            }
+        } else {
+            if (this._focusChangedSignal) {
+                global.display.disconnect(this._focusChangedSignal);
+                this._focusChangedSignal = undefined;
+                if (this._focusWindow) {
+                    this._focusWindow.disconnect(this._focusSignal1);
+                    this._focusWindow.disconnect(this._focusSignal2);
+                    this._focusWindow = undefined;
+                    this.signal1 = undefined;
+                    this.signal2 = undefined;
+                }
+            }
+        }
+
+        this._updatePanelVisibility();
+
+        Main.layoutManager._chrome.modifyActorParams(this.actor, { affectsStruts: this._autohideSettings == "false" });
+    },
+
+    /**
+     * _moveResizePanel:
+     *
+     * Function to update the panel position and size according to settings
+     * values.
+     */
     _moveResizePanel: function() {
         if (this._destroyed) return false;
         this.monitor = global.screen.get_monitor_geometry(this.monitorIndex);
@@ -1637,32 +1701,69 @@ Panel.prototype = {
         let [centerMinWidth, centerNaturalWidth] = this._centerBox.get_preferred_width(-1);
         let [rightMinWidth, rightNaturalWidth] = this._rightBox.get_preferred_width(-1);
 
-        let leftWidth = Math.max(leftNaturalWidth, 25);
-        let centerWidth = centerMinWidth;
-        let rightWidth = Math.max(rightNaturalWidth, 25);
+        let totalMinWidth = leftMinWidth + centerMinWidth + rightMinWidth;
+        let totalNaturalWidth = leftNaturalWidth + centerNaturalWidth + rightNaturalWidth;
 
-        let space_needed = leftWidth + centerWidth + rightWidth;
-        if (space_needed <= allocWidth) {
-            // If we've more space than we need, expand the center zone
-            let space_left = allocWidth - space_needed;
-            centerWidth = centerWidth + space_left;
-        }
-        else {
-            let space_missing = space_needed - allocWidth;
-            // If there isn't enough space, reduce the size of the largest zone (likely to contain more shrinkable content)
-            if (leftWidth >= centerWidth && leftWidth >= rightWidth) {
-                leftWidth = Math.max(leftWidth - space_missing, leftMinWidth);
-            }
-            else if (centerWidth >= rightWidth) {
-                centerWidth = Math.max(centerWidth - space_missing, centerMinWidth);
-            }
-            else {
-                rightWidth = Math.max(rightWidth - space_missing, rightMinWidth);
-            }
+        let sideMinWidth = Math.max(leftMinWidth, rightMinWidth);
+        let sideNaturalWidth = Math.max(leftNaturalWidth, rightNaturalWidth);
+        let totalCenteredMinWidth = centerMinWidth - 2 * sideMinWidth;
+        let totalCenteredNaturalWidth = centerNaturalWidth - 2 * sideNaturalWidth;
+
+        let leftWidth, centerWidth, rightWidth;
+
+        let centerBoxOccupied = this._centerBox.get_children().length > 0;
+
+        /* If panel edit mode, pretend central box is occupied and give it at
+         * least width 25 so that things can be dropped into it */
+        if (this._panelEditMode) {
+            centerBoxOccupied = true;
+            centerMinWidth = Math.max(centerMinWidth, 25);
+            centerNaturalWidth = Math.max(centerNaturalWidth, 25);
         }
 
-        let leftBoundary = leftWidth;
-        let rightBoundary = allocWidth - rightWidth;
+        if (totalCenteredNaturalWidth < allocWidth && centerBoxOccupied) {
+            /* We can give everything their natural width and center will still
+             * be centered. */
+            leftWidth = (allocWidth - centerNaturalWidth) / 2;
+            rightWidth = leftWidth;
+        } else if (totalCenteredMinWidth < allocWidth && centerBoxOccupied) {
+            /* Center can be centered as without shrinking things too much.
+             * First give everything the minWidth they want, and they distribute
+             * the remaining space proportional to how much the regions want. */
+            let totalRemaining = allocWidth - totalCenteredMinWidth;
+            let totalWant = totalCenteredNaturalWidth - totalCenteredMinWidth;
+
+            leftWidth = sideMinWidth + (sideNaturalWidth - sideMinWidth) / totalWant * totalRemaining;
+            rightWidth = leftWidth;
+        } else if (totalNaturalWidth < allocWidth) {
+            /* Center cannot be centered even if things are at their min width,
+             * but there is enough space as long as we don't bother about
+             * centering. Expand the smaller region so that the central region
+             * is as close to the center as possible. */
+            if (leftNaturalWidth > rightNaturalWidth) {
+                rightWidth = allocWidth - leftNaturalWidth - centerNaturalWidth;
+                leftWidth = leftNaturalWidth;
+            } else {
+                leftWidth = allocWidth - rightNaturalWidth - centerNaturalWidth;
+                rightWidth = rightNaturalWidth;
+            }
+        } else if (totalMinWidth < allocWidth) {
+            /* There is enough space for minWidth but not for naturalWidth.
+             * Allocate the minWidth and then divide the remaining space
+             * according to how much more they want. */
+            let totalRemaining = allocWidth - totalMinWidth;
+            let totalWant = totalNaturalWidth - totalMinWidth
+
+            leftWidth = leftMinWidth + (leftNaturalWidth - leftMinWidth) / totalWant * totalRemaining;
+            rightWidth = rightMinWidth + (rightNaturalWidth - rightMinWidth) / totalWant * totalRemaining;
+        } else {
+            /* Scale everything down according to their minWidth. */
+            leftWidth = leftMinWidth / totalMinWidth * allocWidth;
+            rightWidth = rightMinWidth / totalMinWidth * allocWidth;
+        }
+
+        let leftBoundary = Math.round(leftWidth);
+        let rightBoundary = Math.round(allocWidth - rightWidth);
         if (this.actor.get_direction() == St.TextDirection.RTL) {
             leftBoundary = allocWidth - leftWidth;
             rightBoundary = rightWidth;
@@ -1681,8 +1782,6 @@ Panel.prototype = {
         }
         this._leftBox.allocate(childBox, flags);
 
-        childBox.y1 = 0;
-        childBox.y2 = allocHeight;
         if (this.actor.get_direction() == St.TextDirection.RTL) {
             childBox.x1 = rightBoundary;
             childBox.x2 = leftBoundary;
@@ -1692,8 +1791,6 @@ Panel.prototype = {
         }
         this._centerBox.allocate(childBox, flags);
 
-        childBox.y1 = 0;
-        childBox.y2 = allocHeight;
         if (this.actor.get_direction() == St.TextDirection.RTL) {
             childBox.x1 = 0;
             childBox.x2 = rightBoundary;
@@ -1721,73 +1818,132 @@ Panel.prototype = {
 
         this._updatePanelBarriers();
     },
-    
-    _clearTimers: function() {
-        if (this._showTimer) {
-            Mainloop.source_remove(this._showTimer);
-            this._showTimer = 0;
+
+    /**
+     * _updatePanelVisibility:
+     *
+     * Checks whether the panel should show based on the autohide settings and
+     * position of mouse/active window. It then calls the _queueShowHidePanel
+     * function to show or hide the panel as necessary.
+     */
+    _updatePanelVisibility: function() {
+        // false = autohide, true = always show, intel = Intelligent
+        switch (this._autohideSettings) {
+        case "false":
+            this._shouldShow = true;
+            break;
+        case "true":
+            this._shouldShow = this._mouseEntered;
+            break;
+        default:
+            if (this._mouseEntered || !global.display.focus_window) {
+                this._shouldShow = true;
+                break;
+            }
+            /* Calculate the y instead of getting the actor y since the
+             * actor might be hidden*/
+            let y = this.bottomPosition ?
+                 this.monitor.y + this.monitor.height - this.actor.height :
+                 this.monitor.y;
+
+            let a = this.actor;
+            let b = global.display.focus_window.get_compositor_private();
+            /* Magic to check whether the panel position overlaps with the
+             * current focused window */
+            this._shouldShow =
+                !(Math.max(a.x, b.x) < Math.min(a.x + a.width, b.x + b.width) &&
+                  Math.max(y, b.y) < Math.min(y + a.height, b.y + b.height));
         }
-        if (this._hideTimer) {
-            Mainloop.source_remove(this._hideTimer);
-            this._hideTimer = 0;
+
+        if (this._panelEditMode)
+            this._shouldShow = true;
+
+        this._queueShowHidePanel();
+    },
+
+    /**
+     * _queueShowHidePanel:
+     *
+     * Makes the panel show or hide after a delay specified by
+     * panels-show-delay and panels-hide-delay.
+     */
+    _queueShowHidePanel: function() {
+        if (this._showHideTimer) {
+            Mainloop.source_remove(this._showHideTimer);
+            this._showHideTimer = 0;
+        }
+
+        /* Use a timeout_add even if delay is 0 to avoid "flashing" of panel.
+         * Otherwise, if, say hideDelay is 0 and showDelay is 1000, when you
+         * move over an applet, leave and enter events are fired consecutively.
+         * Then the leave-event causes the panel hides instantly, causing a
+         * further leave-event (since the mouse actually left the panel), which
+         * clears the showPanel timer, and the panel won't show up again. If a
+         * timeout_add is used for showDelay, the hide timeout will be cancelled
+         * by the coming enter-event, and the panel remains open. */
+        if (this._shouldShow) {
+            let showDelay = this._getProperty(PANEL_SHOW_DELAY_KEY, "i");
+            this._showHideTimer = Mainloop.timeout_add(showDelay, Lang.bind(this, this._showPanel))
+        } else {
+            let hideDelay = this._getProperty(PANEL_HIDE_DELAY_KEY, "i");
+            this._showHideTimer = Mainloop.timeout_add(hideDelay, Lang.bind(this, this._hidePanel))
         }
     },
     
     _enterPanel: function() {
-        this.isMouseOverPanel = true;
-        this._clearTimers();
-        let showDelay = this._getProperty(PANEL_SHOW_DELAY_KEY, "i");
-        if (showDelay > 0) {
-            this._showTimer = Mainloop.timeout_add(showDelay, Lang.bind(this, this._showPanel));
-        }
-        else {
-            this._showPanel();
-        }
+        this._mouseEntered = true;
+        this._updatePanelVisibility();
     },
 
     _leavePanel:function() {
-        this.isMouseOverPanel = false;
-        this._clearTimers();
-        let hideDelay = this._getProperty(PANEL_HIDE_DELAY_KEY, "i");
-        if (hideDelay > 0 && !this._disabled) {
-            this._hideTimer = Mainloop.timeout_add(hideDelay, Lang.bind(this, this._hidePanel));
-        }
-        else {
-            this._hidePanel();
-        }
+        this._mouseEntered = false;
+        this._updatePanelVisibility();
     }, 
 
-    enable: function() {
-        this._disabled = false;
-        this.actor.show();
-        Tweener.addTween(this.actor, {
-            opacity: 255, 
-            time: AUTOHIDE_ANIMATION_TIME, 
-            transition: 'easeOutQuad'
-        });
-    }, 
-    
+    /**
+     * disable:
+     *
+     * Disables the panel by settings the opacity to 0 and hides if autohide is
+     * enable. The actor is then hidden after the animation.
+     */
     disable: function() {
         this._disabled = true;
         this._leavePanel();
         Tweener.addTween(this.actor, {
-            opacity: 0, 
-            time: AUTOHIDE_ANIMATION_TIME, 
-            transition: 'easeOutQuad', 
+            opacity: 0,
+            time: AUTOHIDE_ANIMATION_TIME,
+            transition: 'easeOutQuad',
             onComplete: this.actor.hide
         });
     }, 
-    
+
+    /**
+     * enable:
+     *
+     * Reverses the effects of the disable function.
+     */
+    enable: function() {
+        this._disabled = false;
+        this.actor.show();
+        Tweener.addTween(this.actor, {
+            opacity: 255,
+            time: AUTOHIDE_ANIMATION_TIME,
+            transition: 'easeOutQuad'
+        });
+    },
+
+    /**
+     * _showPanel:
+     *
+     * A function to force the panel to show. This has no effect if the panel
+     * is disabled.
+     */
     _showPanel: function() {
-        this._clearTimers();
+        this._showHideTimer = 0;
 
         if (this._disabled) return;
 
         if (!this._hidden) return;
-
-        if (Main.lookingGlass != null && Main.lookingGlass._open) {
-            return;
-        }
 
         // Force the panel to be on top (hack to correct issues when switching workspace)
         Main.layoutManager._windowsRestacked();
@@ -1839,10 +1995,19 @@ Panel.prototype = {
         this._hidden = false;
     },
 
+    /**
+     * _hidePanel:
+     * @force (boolean): whether or not to force the hide.
+     *
+     * This hides the panel unless this._shouldShow is false. This behaviour is
+     * overridden if the @force argument is set to true. However, the panel
+     * will always not be hidden if a menu is open, regardless of the value of
+     * @force.
+     */
     _hidePanel: function(force) {
-        this._clearTimers();
+        this._showHideTimer = 0;
 
-        if ((!this._hideable && !force) || global.menuStackLength > 0 || this.isMouseOverPanel) return;
+        if ((this._shouldShow && !force) || global.menuStackLength > 0) return;
 
         // Force the panel to be on top (hack to correct issues when switching workspace)
         Main.layoutManager._windowsRestacked();
@@ -1892,5 +2057,4 @@ Panel.prototype = {
 
         this._hidden = true;
     },
-
 };

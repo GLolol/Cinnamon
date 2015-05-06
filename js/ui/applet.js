@@ -31,6 +31,7 @@ function MenuItem(label, icon, callback) {
 
 /**
  * #AppletContextMenu
+ * @short_description: Applet right-click menu
  * 
  * A context menu (right-click menu) to be used by an applet
  * 
@@ -62,6 +63,7 @@ AppletContextMenu.prototype = {
 
 /**
  * #AppletPopupMenu:
+ * @short_description: Applet left-click menu
  * 
  * A popupmenu menu (left-click menu) to be used by an applet
  * 
@@ -129,16 +131,25 @@ AppletPopupMenu.prototype = {
 
 /**
  * #Applet
+ * @short_description: Base applet class
+ *
  * @actor (St.BoxLayout): Actor of the applet
- * @_uuid (string): UUID of the applet
  * @instance_id (int): Instance id of the applet
- * @_panelLocation (St.BoxLayout): Panel sector containing the applet
- * @_order (int): The order of the applet within a panel location
- * @_draggable (DND._Draggable): The draggable object of the applet
+ * @_uuid (string): UUID of the applet. This is set by appletManager *after*
+ * the applet is loaded.
+ * @_panelLocation (St.BoxLayout): Panel sector containing the applet. This is
+ * set by appletManager *after* the applet is loaded.
+ * @panel (Panel.Panel): The panel object containing the applet. This is set by
+ * appletManager *after* the applet is loaded.
+ * @_meta (JSON): The metadata of the applet. This is set by appletManager
+ * *after* the applet is loaded.
+ * @_order (int): The order of the applet within a panel location This is set
+ * by appletManager *after* the applet is loaded.
+ * @_draggable (Dnd._Draggable): The draggable object of the applet
  * @_scaleMode (boolean): Whether the applet scales according to the panel size
  * @_applet_tooltip (Tooltips.PanelItemTooltip): The tooltip of the applet
  * @_menuManager (PopupMenu.PopupMenuManager): The menu manager of the applet
- * @_applet_context_menu (AppletContextMenu): The context menu of the applet
+ * @_applet_context_menu (Applet.AppletContextMenu): The context menu of the applet
  * @_applet_tooltip_text (string): Text of the tooltip
  * 
  * Base applet class that other applets can inherit
@@ -170,6 +181,7 @@ Applet.prototype = {
         this._newOrder = null; //  Used when moving an applet
         this._panelLocation = null; // Backlink to the panel location our applet is in, set by Cinnamon.
         this._newPanelLocation = null; //  Used when moving an applet
+        this._applet_enabled = true; // Whether the applet is enabled or not (if not it hides in the panel as if it wasn't there)
 
         this._panelHeight = panel_height ? panel_height : 25;
         this.instance_id = instance_id; // Needed by appletSettings
@@ -243,19 +255,21 @@ Applet.prototype = {
     },
 
     _onButtonPressEvent: function (actor, event) {
-        if (event.get_button() == 1) {
-            if (!this._draggable.inhibit) {
-                return false;
-            } else {
-                if (this._applet_context_menu.isOpen) {
-                    this._applet_context_menu.toggle();
+        if (this._applet_enabled) {
+            if (event.get_button() == 1) {
+                if (!this._draggable.inhibit) {
+                    return false;
+                } else {
+                    if (this._applet_context_menu.isOpen) {
+                        this._applet_context_menu.toggle();
+                    }
+                    this.on_applet_clicked(event);
                 }
-                this.on_applet_clicked(event);
             }
-        }
-        if (event.get_button()==3){            
-            if (this._applet_context_menu._getMenuItems().length > 0) {
-                this._applet_context_menu.toggle();			
+            if (event.get_button()==3){            
+                if (this._applet_context_menu._getMenuItems().length > 0) {
+                    this._applet_context_menu.toggle();			
+                }
             }
         }
         return true;
@@ -268,8 +282,30 @@ Applet.prototype = {
      * Sets the tooltip of the applet
      */
     set_applet_tooltip: function (text) {
-        this._applet_tooltip_text = text;
-        this._applet_tooltip.set_text(text);
+        if (text != this._applet_tooltip_text) {
+            this._applet_tooltip_text = text;
+            this._applet_tooltip.set_text(text);
+        }
+    },
+
+    /**
+     * set_applet_enabled:
+     * @enabled (boolean): whether this applet is enabled or not
+     * 
+     * Sets whether the applet is enabled or not
+     * A disabled applet sets its padding to 0px and doesn't react to clicks
+     */
+    set_applet_enabled: function (enabled) {
+        if (enabled != this._applet_enabled) {
+            this._applet_enabled = enabled;
+            if (enabled) {
+                this.actor.set_style_class_name('applet-box');
+            }
+            else {
+                this.set_applet_tooltip('');
+                this.actor.set_style("padding:0px;");
+            }
+        }
     },
 
     /**
@@ -450,9 +486,9 @@ Signals.addSignalMethods(Applet.prototype);
 
 /**
  * #IconApplet:
+ * @short_description: Applet with icon
+ *
  * @_applet_icon (St.Icon): Actor of the icon
- * @__icon_type (St.IconType): Type of the icon (FULLCOLOR/SYMBOLIC)
- * @__icon_name (string): Name of icon
  * 
  * Applet that contains an icon
  * 
@@ -583,6 +619,7 @@ IconApplet.prototype = {
 
 /**
  * #TextApplet:
+ * @short_description: Applet with label
  * @_applet_label (St.Label): Label of the applet
  *
  * Applet that displays a text
@@ -627,6 +664,7 @@ TextApplet.prototype = {
 
 /**
  * #TextIconApplet:
+ * @short_description: Applet with icon and label
  * @_applet_label (St.Label): Label of the applet
  *
  * Applet that displays an icon and a text. The icon is on the left of the text
