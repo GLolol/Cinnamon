@@ -1339,6 +1339,18 @@ PopupMenu.prototype = {
     // menu is higher then the screen; it's useful if part of the menu is
     // scrollable so the minimum height is smaller than the natural height
     setMaxHeight: function() {
+        let monitor = Main.layoutManager.findMonitorForActor(this.sourceActor)
+
+        let maxHeight = monitor.height - this.actor.get_theme_node().get_length('-boxpointer-gap');
+
+        let panels = Main.panelManager.getPanelsInMonitor(Main.layoutManager.monitors.indexOf(monitor));
+
+        for (let panel of panels)
+            maxHeight -= panel.actor.height;
+
+        this.actor.style = 'max-height: ' + maxHeight / global.ui_scale + 'px; ' +
+            'max-width: ' + (monitor.width - 20)/ global.ui_scale + 'px;';
+        // PopupMenus have 10px margins      ^
     },
 
     close: function(animate) {
@@ -1541,12 +1553,14 @@ PopupSubMenu.prototype = {
 };
 
 /**
- * PopupMenuSection:
+ * #PopupMenuSection:
  *
  * A section of a PopupMenu which is handled like a submenu
  * (you can add and remove items, you can destroy it, you
  * can add it to another menu), but is completely transparent
  * to the user
+ *
+ * Inherits: PopupMenu.PopupMenuBase
  */
 function PopupMenuSection() {
     this._init.apply(this, arguments);
@@ -1566,6 +1580,7 @@ PopupMenuSection.prototype = {
     // deliberately ignore any attempt to open() or close()
     open: function(animate) { },
     close: function() { },
+
 }
 
 function PopupSubMenuMenuItem() {

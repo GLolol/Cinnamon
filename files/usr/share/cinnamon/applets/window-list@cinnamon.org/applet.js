@@ -1,12 +1,7 @@
 /* Window-list applet
  *
- * The applet code consists of four main object. The SignalManager,
- * AppMenuButton, AppMenuButtonRightClickMenu and the main applet code.
- *
- * The SignalManager is a helper object that manages the signals the applet
- * connects to, providing handy functions to connect and disconnect to signals.
- * This should be moved to the main Cinnamon code to be available for
- * everything.
+ * The applet code consists of three main object. AppMenuButton,
+ * AppMenuButtonRightClickMenu and the main applet code.
  *
  * The main applet object listens to different events and updates the window
  * list accordingly. Since addition/removal of windows is emitted by the
@@ -59,6 +54,7 @@ const Main = imports.ui.main;
 const Panel = imports.ui.panel;
 const PopupMenu = imports.ui.popupMenu;
 const Settings = imports.ui.settings;
+const SignalManager = imports.misc.signalManager;
 const Tooltips = imports.ui.tooltips;
 const Tweener = imports.ui.tweener;
 const Util = imports.misc.util;
@@ -68,52 +64,6 @@ const DEFAULT_ICON_SIZE = 16; // too bad this can't be defined in theme (cinnamo
 const ICON_HEIGHT_FACTOR = .64;
 const MAX_TEXT_LENGTH = 1000;
 const FLASH_INTERVAL = 500;
-
-function SignalManager(object) {
-    this._init(object);
-}
-
-SignalManager.prototype = {
-    _init: function(object) {
-        this.object = object;
-        this.storage = new Map();
-    },
-
-    connect: function(obj, sigName, callback) {
-        if (!this.storage.has(sigName))
-            this.storage.set(sigName, []);
-
-        let id = obj.connect(sigName, Lang.bind(this.object, callback));
-        this.storage.get(sigName).push([obj, id]);
-    },
-
-    disconnect: function(sigName, obj) {
-        if (!this.storage.has(sigName))
-            return;
-
-        let list = this.storage.get(sigName);
-
-        if (!obj) {
-            for (let item of list)
-                item[0].disconnect(item[1]);
-
-            this.storage.delete(sigName);
-        } else {
-            for (let item of list)
-                if (item[0] == obj)
-                    item[0].disconnect(item[1]);
-            if (list.length == 0)
-                this.storage.delete(sigName);
-        }
-    },
-
-    disconnectAllSignals: function() {
-        for (let signals of this.storage.values())
-            for (let item of signals)
-                item[0].disconnect(item[1]);
-        this.storage.clear();
-    }
-}
 
 function AppMenuButton(applet, metaWindow, alert) {
     this._init(applet, metaWindow, alert);
@@ -419,14 +369,15 @@ AppMenuButton.prototype = {
     },
 
     _getPreferredWidth: function(actor, forHeight, alloc) {
-        let [minSize, naturalSize] = this._label.get_preferred_width(forHeight);
-        alloc.min_size = minSize; // minimum size just enough for icon if we ever get that many apps going
-        if (this._applet.buttonsUseEntireSpace) {
-            alloc.natural_size = alloc.natural_size + naturalSize + 10 * global.ui_scale;
-            alloc.natural_size = Math.max(alloc.natural_size, 150 * global.ui_scale);
+        let [minSize, naturalSize] = this._iconBox.get_preferred_width(forHeight);
+        // minimum size just enough for icon if we ever get that many apps going
+        alloc.min_size = naturalSize + 2 * 3 * global.ui_scale;
 
-        }
-        else {
+        if (this._applet.buttonsUseEntireSpace) {
+            let [lminSize, lnaturalSize] = this._label.get_preferred_width(forHeight);
+            alloc.natural_size = Math.max(150 * global.ui_scale,
+                    lnaturalSize + naturalSize + 3 * 3 * global.ui_scale);
+        } else {
             alloc.natural_size = 150 * global.ui_scale;
         }
     },
@@ -448,20 +399,26 @@ AppMenuButton.prototype = {
 
         let direction = this.actor.get_text_direction();
 
+        let xPadding = 3 * global.ui_scale;
         let yPadding = Math.floor(Math.max(0, allocHeight - naturalHeight) / 2);
         childBox.y1 = yPadding;
         childBox.y2 = childBox.y1 + Math.min(naturalHeight, allocHeight);
         if (direction == Clutter.TextDirection.LTR) {
-            childBox.x1 = Math.min(allocWidth, 3);
-            childBox.x2 = childBox.x1 + Math.max(0, Math.min(naturalWidth, allocWidth - 3));
+            if (allocWidth < naturalWidth + xPadding * 2)
+                childBox.x1 = Math.max(0, (allocWidth - naturalWidth) / 2)
+            else
+                childBox.x1 = Math.min(allocWidth, xPadding);
+            childBox.x2 = Math.min(childBox.x1 + naturalWidth, allocWidth);
         } else {
-            childBox.x1 = Math.max(0, allocWidth - naturalWidth - 3);
-            childBox.x2 = Math.max(0, allocWidth - 3);
+            if (allocWidth < naturalWidth + xPadding * 2)
+                childBox.x1 = Math.max(0, (allocWidth - naturalWidth)/2);
+            else
+                childBox.x1 = allocWidth - naturalWidth - xPadding;
+            childBox.x2 = Math.min(childBox.x1 + naturalWidth, allocWidth);
         }
         this._iconBox.allocate(childBox, flags);
 
         let remX1 = childBox.x2, remX2 = allocWidth;
-
 
         [minWidth, minHeight, naturalWidth, naturalHeight] = this._label.get_preferred_size();
 
@@ -470,11 +427,11 @@ AppMenuButton.prototype = {
         childBox.y2 = childBox.y1 + Math.min(naturalHeight, allocHeight);
         if (direction == Clutter.TextDirection.LTR) {
             // Reuse the values from the previous allocation
-            childBox.x1 = Math.min(childBox.x2 + 3, allocWidth);
-            childBox.x2 = allocWidth;
+            childBox.x1 = Math.min(childBox.x2 + xPadding, Math.max(0, allocWidth - xPadding));
+            childBox.x2 = Math.max(childBox.x1, allocWidth - xPadding);
         } else {
-            childBox.x2 = Math.max(childBox.x1 - 3, 0);
-            childBox.x1 = 0;
+            childBox.x2 = Math.max(childBox.x1 - xPadding, 0);
+            childBox.x1 = Math.min(childBox.x2, xPadding);
         }
         this._label.allocate(childBox, flags);
     },
@@ -734,7 +691,7 @@ MyApplet.prototype = {
                 "buttonsUseEntireSpace",
                 this._refreshItems, null);
 
-        this.signals = new SignalManager(this);
+        this.signals = new SignalManager.SignalManager(this);
 
         let tracker = Cinnamon.WindowTracker.get_default();
         this.signals.connect(tracker, "notify::focus-app", this._onFocus);

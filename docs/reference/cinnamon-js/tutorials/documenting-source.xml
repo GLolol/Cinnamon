@@ -6,9 +6,7 @@
 
   <para> Currently, we support documenting files (eg. <code>main.js</code>), objects (eg. <code>Applet.Applet</code>) and functions (including functions of files and functions of objects).  </para>
 
-  <para>
-    The documentation appears as a comment <emphasis>right before</emphasis> the thing it describes. In the case of a file, it should appear at the very beginning of the file. If a object is declared using <code>prototype</code>, then it can appear right before either the function declaration or the prototype declaration, ie. before line 1 or line 5 in the example below.
-  </para>
+  <para> The documentation appears as a comment <emphasis>right before</emphasis> the thing it describes. In the case of a file, it should appear at the very beginning of the file. If a object is declared using <code>prototype</code>, then it can appear right before either the function declaration or the prototype declaration, ie. before line 1 or line 5 in the example below.  </para>
   <informalexample>
     <programlisting>
       function Applet() {
@@ -52,10 +50,7 @@
     Avoid starting comments with this (use <code>/*</code> instead) even though the parser should be smart enough to not parse them, but if they look too like a piece of documentation, the parser might get confused.
   </para>
 
-  <para>
-    The next line is the name of the thing being documented. Function, object and file documentation are distinguished using this line. They should look, respectively, like this:
-  </para>
-  <informalexample>
+  <para> The next line is the name of the thing being documented. Function, object and file documentation are distinguished using this line. They should look, respectively, like this: </para> <informalexample>
     <programlisting>
       * function_name:
       * #ObjectName:
@@ -70,7 +65,7 @@
     Object.Name - short description
   </informalexample>
 
-  <para> Afterwards, all the properties of the thing should be listed. A "property" is a globally accessible variable in the case of a file, a genuine property in the case of an object, and a parameter for a function. The type of the property is optional, but leaving it out makes the documentation less helpful and also more ugly. If the description is too long, break it into two rows using a *single* line break. Single line breaks are always ignored. For example,</para>
+  <para>Afterwards, all the properties of the thing should be listed. A "property" is a globally accessible variable in the case of a file, a genuine property in the case of an object, and a parameter for a function. The type of the property is optional, but leaving it out makes the documentation less helpful and also more ugly. If the description is too long to fit in one line, break it into two rows using a *single* line break. Single line breaks are always ignored when parsing. For example,</para>
   <informalexample>
     <programlisting>
       * @prop (type): this is a very long description. Oh my gosh I am
@@ -78,7 +73,7 @@
     </programlisting>
   </informalexample>
 
-  <para>After the properties, a description of the thing should be given. Use *two* line breaks to signify the end of the properties section, and write as normal. It is okay to separate two properties with two line breaks, but not recommended. For example,</para>
+  <para>After the properties, a description of the thing should be given. Use *two* line breaks to signify the end of the properties section, and write as normal. It is okay to separate two properties with two line breaks. For example,</para>
 
   <informalexample>
     <programlisting>
@@ -99,7 +94,18 @@
     </programlisting>
   </informalexample>
 
-  <para>is bad (line 2 will be treated as a description of the object itself).  In the description section, two line breaks will be translated into an actual line break, and a single line break is ignored.</para>
+  <para>is bad (line 2 will be treated as a description of the object itself). Instead, if you want the property description to have multiple paragraphs, put a <code>\</code> character in place of the empty line, ie.</para>
+
+  <informalexample>
+    <programlisting>
+      * @prop1 (type): line 1
+      * \
+      * line 2
+      * @prop2 (type): hello world
+    </programlisting>
+  </informalexample>
+
+  <para>In the description section, two line breaks will be translated into an actual line break, and single line breaks are ignored.</para>
 
   <para>At the end, in the case of a function, a return value can be specified in the form</para>
 
@@ -140,10 +146,39 @@
         In the description of itmes, <code>@word</code> will be automatically converted to code format, ie. enclosed within <code>&lt;code&gt;</code> tags.
       </listitem>
       <listitem>
-        In the description of items, <code>*text more text*</code> will be shown in italics and <code>**text more text**</code> will be shown in bold.
+        In the description of items, <code>*text more text*</code> will be shown in italics and <code>**text more text**</code> will be shown in bold. Note that using <code>_underlines to highlight_</code> is not supported since the parser will confuse it with private variables.
+      </listitem>
+      <listitem>
+        Links to other objects can be done with a <code>#Hash</code>. If you are linking to an object within the same file, you may omit the namespace, eg. using <code>#Applet</code> in <code>Applet.AppletContextMenu</code>. However, if it is from a different file, the namespace must be included.
+      </listitem>
+      <listitem>
+        Links to functions and properties within the same object can be donce with a <code>%percentage sign</code>. The inclusion of <code>this.</code> is optional, ie. you can refer to them using either <code>%this.prop</code> or <code>%prop</code>. The brackets after a function are also optional, eg. <code>this.hide()</code> and <code>this.hide</code> are both acceptable. If there are functions and properties that take the same name, the property will be linked to, unless the name ends with <code>()</code>, in which case it will always be a function.
+      </listitem>
+      <listitem>
+        Code blocks can be enclosed in descriptions as follows:
+        <informalexample>
+          <programlisting>
+```
+this.is = some + code
+```
+          </programlisting>
+        </informalexample>
+      </listitem>
+      <listitem>
+        Unordered lists can be created as follows:
+        <informalexample>
+          <programlisting>
+- List item 1
+- List item 2
+  \
+  Continuing item 2 with `\`
+
+No longer an item
+          </programlisting>
+        </informalexample>
+        Lists cannot be nested, but code blocks can appear in lists
       </listitem>
     </itemizedlist>
-
   </sect2>
 </chapter>
 

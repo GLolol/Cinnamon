@@ -570,7 +570,7 @@ data_to_cogl_texture (const guchar *data,
                       int           rowstride,
                       gboolean      add_padding)
 {
-  CoglHandle texture, offscreen;
+  CoglHandle texture, offscreen = NULL;
   CoglColor clear_color;
   guint size;
   GError *error;
@@ -587,17 +587,26 @@ data_to_cogl_texture (const guchar *data,
   texture = st_cogl_texture_new_with_size_wrapper (size, size,
                                                    COGL_TEXTURE_NO_SLICING,
                                                    COGL_PIXEL_FORMAT_ANY);
-
-  offscreen = cogl_offscreen_new_to_texture (texture);
+  if (texture)
+    offscreen = cogl_offscreen_new_to_texture (texture);
 
   error = NULL;
-  if (!cogl_framebuffer_allocate (offscreen, &error))
+  if (!texture || !offscreen || !cogl_framebuffer_allocate (offscreen, &error))
     {
-      g_warning ("Failed to allocate FBO (sized %d): %s", size, error->message);
-
-      cogl_object_unref (texture);
-      cogl_object_unref (offscreen);
-      g_clear_error (&error);
+      if (!texture)
+        g_warning("Failed to allocate texture (sized %d)", size);
+      else if (!offscreen)
+        {
+          g_warning("Failed to allocate offscreen for texture (sized %d)", size);
+          cogl_object_unref (texture);
+        }
+      else
+        {
+          g_warning ("Failed to allocate FBO (sized %d): %s", size, error->message);
+          cogl_object_unref (texture);
+          cogl_object_unref (offscreen);
+          g_clear_error (&error);
+        }
 
       return st_cogl_texture_new_from_data_wrapper (width, height,
                                                     COGL_TEXTURE_NONE,
@@ -1123,24 +1132,29 @@ static void
 ensure_monitor_for_uri (StTextureCache *cache,
                         const gchar    *uri)
 {
-  StTextureCachePrivate *priv = cache->priv;
-  GFile *file = g_file_new_for_uri (uri);
-
-  /* No point in trying to monitor files that are part of a
-   * GResource, since it does not support file monitoring.
+  /* Don't monitor changes at all.
+   * We're keeping this function for now, even if it doesn't do anything
+   * In case special cases come up in the future, where monitors are needed for particular uris.
    */
-  if (!g_file_has_uri_scheme (file, "resource")) {
-    if (g_hash_table_lookup (priv->file_monitors, uri) == NULL)
-    {
-      GFileMonitor *monitor = g_file_monitor_file (file, G_FILE_MONITOR_NONE,
-                                                   NULL, NULL);
-      g_signal_connect (monitor, "changed",
-                        G_CALLBACK (file_changed_cb), cache);
-      g_hash_table_insert (priv->file_monitors, g_strdup (uri), monitor);
-    }
-  }
 
-  g_object_unref (file);
+  // StTextureCachePrivate *priv = cache->priv;
+  // GFile *file = g_file_new_for_uri (uri);
+
+  // /* No point in trying to monitor files that are part of a
+  //  * GResource, since it does not support file monitoring.
+  //  */
+  // if (!g_file_has_uri_scheme (file, "resource")) {
+  //   if (g_hash_table_lookup (priv->file_monitors, uri) == NULL)
+  //   {
+  //     GFileMonitor *monitor = g_file_monitor_file (file, G_FILE_MONITOR_NONE,
+  //                                                  NULL, NULL);
+  //     g_signal_connect (monitor, "changed",
+  //                       G_CALLBACK (file_changed_cb), cache);
+  //     g_hash_table_insert (priv->file_monitors, g_strdup (uri), monitor);
+  //   }
+  // }
+
+  // g_object_unref (file);
 }
 
 typedef struct {

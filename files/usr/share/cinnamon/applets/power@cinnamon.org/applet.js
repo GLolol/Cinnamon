@@ -350,7 +350,12 @@ MyApplet.prototype = {
                 for (let i = 0; i < devices.length; i++) {
                     let [device_id, device_type, icon, percentage, state, seconds] = devices[i];
 
+                    // Ignore AC_POWER devices
                     if (device_type == UPDeviceType.AC_POWER)
+                        continue;
+
+                    // Ignore devices which state is unknown
+                    if (state == UPDeviceState.UNKNOWN)
                         continue;
 
                     let status = this._getDeviceStatus(devices[i]);
@@ -385,9 +390,22 @@ MyApplet.prototype = {
                 }
             }
 
-            // Disable the applet if we don't have any devices
+            // If there are no battery devices, show brightness info or disable the applet
             if (this._deviceItems.length == 0) {
-                this.set_applet_enabled(false);
+                if (this.brightness.actor.visible) {
+                    // Show the brightness info
+                    this.set_applet_tooltip(_("Brightness"));
+                    this.set_applet_icon_symbolic_name('display-brightness');
+                }
+                else if (this.keyboard.actor.visible) {
+                    // Show the brightness info
+                    this.set_applet_tooltip(_("Keyboard backlight"));
+                    this.set_applet_icon_symbolic_name('keyboard-brightness');
+                }
+                else {
+                    // Disable the applet
+                    this.set_applet_enabled(false);
+                }
             }
             else {
                 this.set_applet_enabled(true);

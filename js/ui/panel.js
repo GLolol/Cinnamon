@@ -1,22 +1,31 @@
-// -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
-
+/**
+ * FILE:panel.js
+ * @short_description: The file responsible for managing panels
+ *
+ * This file is where everything about panels happens. #Main will create a
+ * #PanelManager object, which is responsible for creating and moving panels.
+ * There is also a %checkPanelUpgrade function used as a transition between the
+ * old panel settings and the new panel settings.
+ */
 const Cairo = imports.cairo;
 const Clutter = imports.gi.Clutter;
 const Lang = imports.lang;
 const Mainloop = imports.mainloop;
+const Meta = imports.gi.Meta;
 const Pango = imports.gi.Pango;
 const Cinnamon = imports.gi.Cinnamon;
 const St = imports.gi.St;
 
-const PopupMenu = imports.ui.popupMenu;
-const Main = imports.ui.main;
-const Tweener = imports.ui.tweener;
 const Applet = imports.ui.applet;
-const DND = imports.ui.dnd;
 const AppletManager = imports.ui.appletManager;
-const Util = imports.misc.util;
-const ModalDialog = imports.ui.modalDialog;
+const DND = imports.ui.dnd;
 const Gtk = imports.gi.Gtk;
+const Main = imports.ui.main;
+const ModalDialog = imports.ui.modalDialog;
+const PopupMenu = imports.ui.popupMenu;
+const SignalManager = imports.misc.signalManager;
+const Tweener = imports.ui.tweener;
+const Util = imports.misc.util;
 
 const BUTTON_DND_ACTIVATION_TIMEOUT = 250;
 
@@ -171,9 +180,9 @@ PanelManager.prototype = {
 
         this.addPanelMode = false;
 
-        global.settings.connect("changed::panels-enabled", Lang.bind(this, this._onPanelsEnabledChanged));
-        global.settings.connect("changed::panel-edit-mode", Lang.bind(this, this._onPanelEditModeChanged));
-        global.screen.connect("monitors-changed", Lang.bind(this, this._onMonitorsChanged));
+        this._panelsEnabledId = global.settings.connect("changed::panels-enabled", Lang.bind(this, this._onPanelsEnabledChanged));
+        this._panelEditModeId = global.settings.connect("changed::panel-edit-mode", Lang.bind(this, this._onPanelEditModeChanged));
+        this._monitorsChangedId = global.screen.connect("monitors-changed", Lang.bind(this, this._onMonitorsChanged));
 
         this._addOsd = new ModalDialog.InfoOSD(_("Select position of new panel. Esc to cancel."));
         this._moveOsd = new ModalDialog.InfoOSD(_("Select new position of panel. Esc to cancel."));
@@ -1218,6 +1227,8 @@ PanelZoneDNDHandler.prototype = {
 
 /**
  * #Panel:
+ * @short_description: A panel object on the monitor
+ *
  * @panelId (int): the id of the panel
  * @monitorIndex (int): the index of the monitor containing the panel
  * @monitor (Meta.Rectangle): the geometry (bounding box) of the monitor
@@ -1252,7 +1263,7 @@ Panel.prototype = {
         this._autohideSettings = this._getProperty(PANEL_AUTOHIDE_KEY, "s");
         this._themeFontSize = null;
         this._destroyed = false;
-        this._settingsSignals = [];
+        this._signalManager = new SignalManager.SignalManager(this);
 
         this.scaleMode = false;
 
@@ -1294,33 +1305,33 @@ Panel.prototype = {
 
         this._context_menu = new PanelContextMenu(this, bottomPosition ? St.Side.BOTTOM: St.Side.TOP, id);
         this._menus.addMenu(this._context_menu);
-        
+
         this._context_menu._boxPointer._container.connect('allocate', Lang.bind(this._context_menu._boxPointer, function(actor, box, flags){
                     this._xPosition = this._xpos;
                     this._shiftActor();
         }));
 
+        this._leftPanelBarrier = 0;
+        this._rightPanelBarrier = 0;
+        Main.layoutManager.addChrome(this.actor, { addToWindowgroup: false });
+        this._moveResizePanel();
+        this._onPanelEditModeChanged();
+
         this.actor.connect('button-press-event', Lang.bind(this, this._onButtonPressEvent));
         this.actor.connect('style-changed', Lang.bind(this, this._moveResizePanel));
-        this.actor.connect('parent-set', Lang.bind(this, this._onPanelEditModeChanged));
         this.actor.connect('leave-event', Lang.bind(this, this._leavePanel));
         this.actor.connect('enter-event', Lang.bind(this, this._enterPanel));
         this.actor.connect('get-preferred-width', Lang.bind(this, this._getPreferredWidth));
         this.actor.connect('get-preferred-height', Lang.bind(this, this._getPreferredHeight));
         this.actor.connect('allocate', Lang.bind(this, this._allocate));
 
-        this._settingsSignals.push(global.settings.connect("changed::" + PANEL_AUTOHIDE_KEY, Lang.bind(this, this._processPanelAutoHide)));
-        this._settingsSignals.push(global.settings.connect("changed::" + PANEL_HEIGHT_KEY, Lang.bind(this, this._moveResizePanel)));
-        this._settingsSignals.push(global.settings.connect("changed::" + PANEL_RESIZABLE_KEY, Lang.bind(this, this._moveResizePanel)));
-        this._settingsSignals.push(global.settings.connect("changed::" + PANEL_SCALE_TEXT_ICONS_KEY, Lang.bind(this, this._onScaleTextIconsChanged)));
-        this._settingsSignals.push(global.settings.connect("changed::panel-edit-mode", Lang.bind(this, this._onPanelEditModeChanged)));
-        this._settingsSignals.push(global.settings.connect("changed::no-adjacent-panel-barriers", Lang.bind(this, this._updatePanelBarriers)));
+        this._signalManager.connect(global.settings, "changed::" + PANEL_AUTOHIDE_KEY, this._processPanelAutoHide);
+        this._signalManager.connect(global.settings, "changed::" + PANEL_HEIGHT_KEY, this._moveResizePanel);
+        this._signalManager.connect(global.settings, "changed::" + PANEL_RESIZABLE_KEY, this._moveResizePanel);
+        this._signalManager.connect(global.settings, "changed::" + PANEL_SCALE_TEXT_ICONS_KEY, this._onScaleTextIconsChanged);
+        this._signalManager.connect(global.settings, "changed::panel-edit-mode", this._onPanelEditModeChanged);
+        this._signalManager.connect(global.settings, "changed::no-adjacent-panel-barriers", this._updatePanelBarriers);
 
-
-        this._leftPanelBarrier = 0;
-        this._rightPanelBarrier = 0;
-        Main.layoutManager.addChrome(this.actor, { addToWindowgroup: false });
-        this._moveResizePanel();
     },
 
     /**
@@ -1370,23 +1381,7 @@ Panel.prototype = {
 
         this.actor.destroy();
 
-        let i = this._settingsSignals.length;
-        while (i--) {
-            global.settings.disconnect(this._settingsSignals[i]);
-        }
-
-        if (this._focusChangedSignal) {
-            global.display.disconnect(this._focusChangedSignal);
-            this._focusChangedSignal = undefined;
-            if (this._focusWindow) {
-                this._focusWindow.disconnect(this._focusSignal1);
-                this._focusWindow.disconnect(this._focusSignal2);
-                this._focusWindow = undefined;
-                this.signal1 = undefined;
-                this.signal2 = undefined;
-            }
-        }
-
+        this._signalManager.disconnectAllSignals()
 
         this._menus = null;
         this.monitor = null;
@@ -1453,6 +1448,7 @@ Panel.prototype = {
             Mainloop.source_remove(this._dragShowId);
 
         let leaveIfOut = Lang.bind(this, function() {
+            this._dragShowId = 0;
             let [x, y, whatever] = global.get_pointer();
             this.actor.sync_hover();
             if (this.actor.x < x && x < this.actor.x + this.actor.width &&
@@ -1571,21 +1567,15 @@ Panel.prototype = {
             this._focusWindow == global.display.focus_window.get_compositor_private())
             return;
 
-        if (this._focusWindow && this._focusSignal1) {
-            this._focusWindow.disconnect(this._focusSignal1);
-            this._focusWindow.disconnect(this._focusSignal2);
-            this._focusSignal1 = undefined;
-            this._focusSignal2 = undefined;
-        }
+        this._signalManager.disconnect("position-changed");
+        this._signalManager.disconnect("size-changed");
 
         if (!global.display.focus_window)
             return;
 
         this._focusWindow = global.display.focus_window.get_compositor_private();
-        this._focusSignal1 = this._focusWindow.connect("position-changed",
-                Lang.bind(this, this._updatePanelVisibility));
-        this._focusSignal2 = this._focusWindow.connect("size-changed",
-                Lang.bind(this, this._updatePanelVisibility));
+        this._signalManager.connect(this._focusWindow, "position-changed", this._updatePanelVisibility);
+        this._signalManager.connect(this._focusWindow, "size-changed", this._updatePanelVisibility);
         this._updatePanelVisibility();
     },
 
@@ -1593,23 +1583,19 @@ Panel.prototype = {
         this._autohideSettings = this._getProperty(PANEL_AUTOHIDE_KEY, "s");
 
         if (this._autohideSettings == "intel") {
-            if (!this._focusChangedSignal) {
-                this._focusChangedSignal = global.display.connect("notify::focus-window",
-                        Lang.bind(this, this._onFocusChanged));
-                this._onFocusChanged();
-            }
+            this._signalManager.connect(global.display, "notify::focus-window", this._onFocusChanged);
+            /* focus-window signal is emitted when the workspace change
+             * animation starts. When the animation ends, we do the position
+             * check again because the windows have moved. We cannot use
+             * _onFocusChanged because _onFocusChanged does nothing when there
+             * is no actual focus change. */
+            this._signalManager.connect(global.window_manager, "switch-workspace-complete", this._updatePanelVisibility);
+            this._onFocusChanged();
         } else {
-            if (this._focusChangedSignal) {
-                global.display.disconnect(this._focusChangedSignal);
-                this._focusChangedSignal = undefined;
-                if (this._focusWindow) {
-                    this._focusWindow.disconnect(this._focusSignal1);
-                    this._focusWindow.disconnect(this._focusSignal2);
-                    this._focusWindow = undefined;
-                    this.signal1 = undefined;
-                    this.signal2 = undefined;
-                }
-            }
+            this._signalManager.disconnect("notify::focus-window");
+            this._signalManager.disconnect("switch-workspace-complete");
+            this._signalManager.disconnect("position-changed");
+            this._signalManager.disconnect("size-changed");
         }
 
         this._updatePanelVisibility();
@@ -1701,16 +1687,6 @@ Panel.prototype = {
         let [centerMinWidth, centerNaturalWidth] = this._centerBox.get_preferred_width(-1);
         let [rightMinWidth, rightNaturalWidth] = this._rightBox.get_preferred_width(-1);
 
-        let totalMinWidth = leftMinWidth + centerMinWidth + rightMinWidth;
-        let totalNaturalWidth = leftNaturalWidth + centerNaturalWidth + rightNaturalWidth;
-
-        let sideMinWidth = Math.max(leftMinWidth, rightMinWidth);
-        let sideNaturalWidth = Math.max(leftNaturalWidth, rightNaturalWidth);
-        let totalCenteredMinWidth = centerMinWidth - 2 * sideMinWidth;
-        let totalCenteredNaturalWidth = centerNaturalWidth - 2 * sideNaturalWidth;
-
-        let leftWidth, centerWidth, rightWidth;
-
         let centerBoxOccupied = this._centerBox.get_children().length > 0;
 
         /* If panel edit mode, pretend central box is occupied and give it at
@@ -1721,45 +1697,82 @@ Panel.prototype = {
             centerNaturalWidth = Math.max(centerNaturalWidth, 25);
         }
 
-        if (totalCenteredNaturalWidth < allocWidth && centerBoxOccupied) {
-            /* We can give everything their natural width and center will still
-             * be centered. */
-            leftWidth = (allocWidth - centerNaturalWidth) / 2;
-            rightWidth = leftWidth;
-        } else if (totalCenteredMinWidth < allocWidth && centerBoxOccupied) {
-            /* Center can be centered as without shrinking things too much.
-             * First give everything the minWidth they want, and they distribute
-             * the remaining space proportional to how much the regions want. */
-            let totalRemaining = allocWidth - totalCenteredMinWidth;
-            let totalWant = totalCenteredNaturalWidth - totalCenteredMinWidth;
+        let totalMinWidth = leftMinWidth + centerMinWidth + rightMinWidth;
+        let totalNaturalWidth = leftNaturalWidth + centerNaturalWidth + rightNaturalWidth;
 
-            leftWidth = sideMinWidth + (sideNaturalWidth - sideMinWidth) / totalWant * totalRemaining;
-            rightWidth = leftWidth;
-        } else if (totalNaturalWidth < allocWidth) {
-            /* Center cannot be centered even if things are at their min width,
-             * but there is enough space as long as we don't bother about
-             * centering. Expand the smaller region so that the central region
-             * is as close to the center as possible. */
-            if (leftNaturalWidth > rightNaturalWidth) {
-                rightWidth = allocWidth - leftNaturalWidth - centerNaturalWidth;
-                leftWidth = leftNaturalWidth;
+        let sideMinWidth = Math.max(leftMinWidth, rightMinWidth);
+        let sideNaturalWidth = Math.max(leftNaturalWidth, rightNaturalWidth);
+        let totalCenteredMinWidth = centerMinWidth + 2 * sideMinWidth;
+        let totalCenteredNaturalWidth = centerNaturalWidth + 2 * sideNaturalWidth;
+
+        let leftWidth, rightWidth;
+
+        if (centerBoxOccupied) {
+            if (totalCenteredNaturalWidth < allocWidth) {
+                /* We can give everything their natural width and center will
+                 * still be centered. */
+                leftWidth = (allocWidth - centerNaturalWidth) / 2;
+                rightWidth = leftWidth;
+            } else if (totalCenteredMinWidth < allocWidth) {
+                /* Center can be centered as without shrinking things too much.
+                 * First give everything the minWidth they want, and they
+                 * distribute the remaining space proportional to how much the
+                 * regions want. */
+                let totalRemaining = allocWidth - totalCenteredMinWidth;
+                let totalWant = totalCenteredNaturalWidth - totalCenteredMinWidth;
+
+                leftWidth = sideMinWidth + (sideNaturalWidth - sideMinWidth) / totalWant * totalRemaining;
+                rightWidth = leftWidth;
+            } else if (totalMinWidth < allocWidth) {
+                /* There is enough space for minWidth if we don't care about
+                 * centering. Make center things as center as possible */
+                if (leftMinWidth > rightMinWidth) {
+                    leftWidth = leftMinWidth;
+
+                    if (leftMinWidth + centerNaturalWidth + rightNaturalWidth < allocWidth) {
+                        rightWidth = allocWidth - leftMinWidth - centerNaturalWidth;
+                    } else {
+                        let totalRemaining = allocWidth - totalMinWidth;
+                        let totalWant = centerNaturalWidth + rightNaturalWidth - (centerMinWidth + rightMinWidth);
+
+                        rightWidth = rightMinWidth + (rightNaturalWidth - rightMinWidth) / totalWant * totalRemaining;
+                    }
+                } else {
+                    rightWidth = rightMinWidth;
+
+                    if (rightMinWidth + centerNaturalWidth + leftNaturalWidth < allocWidth) {
+                        leftWidth = allocWidth - rightMinWidth - centerNaturalWidth;
+                    } else {
+                        let totalRemaining = allocWidth - totalMinWidth;
+                        let totalWant = centerNaturalWidth + leftNaturalWidth - (centerMinWidth + leftMinWidth);
+
+                        leftWidth = leftMinWidth + (leftNatulefth - rightMinWidth) / totalWant * totalRemaining;
+                    }
+                }
             } else {
-                leftWidth = allocWidth - rightNaturalWidth - centerNaturalWidth;
-                rightWidth = rightNaturalWidth;
+                /* Scale everything down according to their minWidth. */
+                leftWidth = leftMinWidth / totalMinWidth * allocWidth;
+                rightWidth = rightMinWidth / totalMinWidth * allocWidth;
             }
-        } else if (totalMinWidth < allocWidth) {
-            /* There is enough space for minWidth but not for naturalWidth.
-             * Allocate the minWidth and then divide the remaining space
-             * according to how much more they want. */
-            let totalRemaining = allocWidth - totalMinWidth;
-            let totalWant = totalNaturalWidth - totalMinWidth
-
-            leftWidth = leftMinWidth + (leftNaturalWidth - leftMinWidth) / totalWant * totalRemaining;
-            rightWidth = rightMinWidth + (rightNaturalWidth - rightMinWidth) / totalWant * totalRemaining;
         } else {
-            /* Scale everything down according to their minWidth. */
-            leftWidth = leftMinWidth / totalMinWidth * allocWidth;
-            rightWidth = rightMinWidth / totalMinWidth * allocWidth;
+            if (totalNaturalWidth < allocWidth) {
+                /* Everything's fine. Allocate as usual. */
+                leftWidth = leftNaturalWidth;
+                rightWidth = rightNaturalWidth;
+            } else if (totalMinWidth < allocWidth && !centerBoxOccupied) {
+                /* There is enough space for minWidth but not for naturalWidth.
+                 * Allocate the minWidth and then divide the remaining space
+                 * according to how much more they want. */
+                let totalRemaining = allocWidth - totalMinWidth;
+                let totalWant = totalNaturalWidth - totalMinWidth;
+
+                leftWidth = leftMinWidth + (leftNaturalWidth - leftMinWidth) / totalWant * totalRemaining;
+                rightWidth = rightMinWidth + (rightNaturalWidth - rightMinWidth) / totalWant * totalRemaining;
+            } else {
+                /* Scale everything down according to their minWidth. */
+                leftWidth = leftMinWidth / totalMinWidth * allocWidth;
+                rightWidth = rightMinWidth / totalMinWidth * allocWidth;
+            }
         }
 
         let leftBoundary = Math.round(leftWidth);
@@ -1836,10 +1849,12 @@ Panel.prototype = {
             this._shouldShow = this._mouseEntered;
             break;
         default:
-            if (this._mouseEntered || !global.display.focus_window) {
+            if (this._mouseEntered || !global.display.focus_window ||
+                global.display.focus_window.get_window_type() == Meta.WindowType.DESKTOP) {
                 this._shouldShow = true;
                 break;
             }
+
             /* Calculate the y instead of getting the actor y since the
              * actor might be hidden*/
             let y = this.bottomPosition ?

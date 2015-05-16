@@ -8,6 +8,7 @@ import shutil
 import PIL
 from PIL import Image
 from random import randint
+import re
 
 gettext.install("cinnamon", "/usr/share/locale")
 
@@ -294,15 +295,19 @@ class NewUserDialog(Gtk.Dialog):
                           
             self.username_entry = Gtk.Entry()
             self.username_entry.connect("changed", self._on_info_changed)
-            
+
+            label = Gtk.Label()
+            label.set_markup(_("The username must consist of only:\n    - lower case letters (a-z)\n    - numerals (0-9)\n    - '.', '-', and '_' characters"))
+
             table = DimmedTable()
             table.add_labels([_("Account Type"), _("Full Name"), _("Username")])     
             table.add_controls([self.account_type_combo, self.realname_entry, self.username_entry])
-                     
+
             self.set_border_width(6)       
             
             box = self.get_content_area()
             box.add(table)
+            box.add(label)
             self.show_all()
 
             self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_ADD, Gtk.ResponseType.OK, )
@@ -315,12 +320,12 @@ class NewUserDialog(Gtk.Dialog):
         fullname = self.realname_entry.get_text()
         username = self.username_entry.get_text()
         valid = True
-        if " " in username or username.lower() != username:
+        if re.search('[^a-z0-9_.-]', username):
             self.username_entry.set_icon_from_stock(Gtk.EntryIconPosition.SECONDARY, Gtk.STOCK_DIALOG_WARNING)
-            self.username_entry.set_icon_tooltip_text(Gtk.EntryIconPosition.SECONDARY, _("The username cannot contain upper-case or space characters"))
+            self.username_entry.set_icon_tooltip_text(Gtk.EntryIconPosition.SECONDARY, _("Invalid username"))
             valid = False
         else:
-            self.username_entry.set_icon_from_stock(Gtk.EntryIconPosition.SECONDARY, None)     
+            self.username_entry.set_icon_from_stock(Gtk.EntryIconPosition.SECONDARY, None)
         if username == "" or fullname == "":
             valid = False
 
@@ -629,7 +634,12 @@ class Module:
             self.menu.popup(None, None, self.popup_menu_below_button, self.face_button, event.button, event.time)
             self.menu.show_all()
 
-    def popup_menu_below_button (self, menu, widget):  
+    def popup_menu_below_button (self, *args):
+        # the introspection for GtkMenuPositionFunc seems to change with each Gtk version,
+        # this is a workaround to make sure we get the menu and the widget
+        menu = args[0]
+        widget = args[-1]
+
         # here I get the coordinates of the button relative to
         # window (self.window)
         button_x, button_y = widget.get_allocation().x, widget.get_allocation().y
