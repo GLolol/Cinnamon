@@ -3,7 +3,9 @@
 
 import os, sys, gettext
 
-if os.path.exists("/usr/bin/marco"):
+if os.path.exists("/usr/bin/openbox"):
+    FALLBACK_COMMAND = "openbox"
+elif os.path.exists("/usr/bin/marco"):
     FALLBACK_COMMAND = "marco"
 else:
     FALLBACK_COMMAND = "metacity"

@@ -96,9 +96,11 @@ Depends: cinnamon-common (= ${source:Version}),
          mesa-utils,
          gkbd-capplet,
          python-pyinotify,
-         marco | metacity,
-         mate-panel | gnome-panel | tint2
-Recommends: gnome-themes-standard, gnome-terminal, cinnamon-bluetooth
+Recommends: gnome-themes-standard,
+         gnome-terminal,
+         cinnamon-bluetooth,
+         openbox | marco | metacity,
+         tint2 | mate-panel | gnome-panel
 Provides: notification-daemon, x-window-manager
 Description: Modern Linux desktop
  Cinnamon is a modern Linux desktop which provides advanced innovative
