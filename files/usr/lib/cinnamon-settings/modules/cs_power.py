@@ -156,7 +156,7 @@ class Module:
 
         section.add_row(GSettingsComboBox(_("When the power button is pressed"), CSD_SCHEMA, "button-power", button_power_options, size_group=size_group))
 
-        if self.has_battery:
+        if self.has_battery and UPowerGlib.MAJOR_VERSION == 0 and UPowerGlib.MINOR_VERSION < 99:
             section.add_row(GSettingsComboBox(_("When the battery is critically low"), CSD_SCHEMA, "critical-battery-action", critical_options, size_group=size_group))
 
         # Batteries
@@ -173,9 +173,14 @@ class Module:
             screen = CinnamonDesktop.RRScreen.new(Gdk.Screen.get_default())
             outputs = CinnamonDesktop.RRScreen.list_outputs(screen)
             for output in outputs:
-                if (output.is_connected() and output.is_laptop() and output.get_backlight_min() >= 0 and output.get_backlight_max() > 0):
-                    primary_output = output
-                    break
+                if (output.is_connected() and output.is_laptop()):
+                    try:
+                        # Try to get the backlight info, if it fails just move on (we used to rely on output.get_backlight_min() and output.get_backlight_max() but these aren't reliable)
+                        output.get_backlight()
+                        primary_output = output
+                        break
+                    except:
+                        pass
         except Exception, detail:
             print "Failed to query backlight information in cs_power module: %s" % detail
 
@@ -241,7 +246,7 @@ class Module:
         # listed laptop battery as the primary device
 
         for device in devices:
-            if device[1] == UPowerGlib.DeviceKind.UPS and device_states[i] == UPowerGlib.DeviceState.DISCHARGING:
+            if device[1] == UPowerGlib.DeviceKind.UPS and device[4] == UPowerGlib.DeviceState.DISCHARGING:
                 ups_as_primary = True
 
         for device in devices:

@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-$(DOC_MAIN_SGML_FILE): $(top_srcdir)/js/*/* gen_lib.py gen_doc.py tutorials.xml tutorials/*
+$(DOC_MAIN_SGML_FILE): $(top_srcdir)/js/*/* gen_lib.py gen_doc.py tutorials/*
 	./gen_doc.py $(top_srcdir) $(PACKAGE_VERSION)
 
 # we want $(DOC_MAIN_SGML_FILE) to be built before sgml-build
@@ -67,7 +67,7 @@ IGNORE_HFILES=
 
 # Images to copy into HTML directory.
 # e.g. HTML_IMAGES=$(top_srcdir)/gtk/stock-icons/stock_about_24.png
-HTML_IMAGES=
+HTML_IMAGES=tutorials/settings.png
 
 # SGML files where gtk-doc abbrevations (#GtkWidget) are expanded
 # These files must be listed here *and* in content_files

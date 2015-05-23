@@ -1,27 +1,36 @@
-cinnamon (2.5.0+utopia4+git20150516) unstable; urgency=medium
+cinnamon (2.6.2+utopia1~git20150523) unstable; urgency=medium
 
-  * Build for Utopia Repository.
+  * Build for Utopia Repository, merging upstream git master as
+    of 23 May 2015.
+  * Prefer openbox+tint2 for fallback session.
 
  -- James Lu <glolol1@hotmail.com>  Sat, 16 May 2015 08:51:57 -0700
 
-cinnamon (2.5.0+utopia3+git20150505) unstable; urgency=medium
+cinnamon (2.6.2) rafaela; urgency=medium
 
-  * Build for Utopia Repository.
+  [ Dexter Chua ]
+  * docs: Move tutorial index to tutorials/ folder
+  * docs: include image used in source
 
- -- James Lu <glolol1@hotmail.com>  Tue, 05 May 2015 19:50:07 -0700
+  [ Clement Lefebvre ]
+  * Gettext fixes
+  * Gettext fix: "Lock Screen" is ambiguous in English, we decided in 2.4 it would be translated as the action, whereas "Screen Locker" would be the noun.
+  * Gettext fix: Can't use adjectives without nouns
 
-cinnamon (2.5.0+utopia2~git20150423) unstable; urgency=medium
+ -- Clement Lefebvre <root@linuxmint.com>  Thu, 21 May 2015 12:41:46 +0200
 
-  * Git snapshot @ 23 Apr 2015.
-  * cs_keyboard: stretch scroll boxes to fill entire window screen.
+cinnamon (2.6.1) rafaela; urgency=medium
 
- -- James Lu <glolol1@hotmail.com>  Thu, 23 Apr 2015 20:26:23 -0700
+  * cs_screensaver.py: ellipsize description when necessary
 
-cinnamon (2.5.0+utopia1~git20150414) unstable; urgency=medium
+ -- Clement Lefebvre <root@linuxmint.com>  Wed, 20 May 2015 09:28:56 +0200
 
-  * Git snapshot @ 14 Apr 2015.
+cinnamon (2.6.0) rafaela; urgency=medium
 
- -- James Lu <glolol@overdrive.pw>  Tue, 14 Apr 2015 17:06:11 -0700
+  * 2.6.0 
+
+ -- Clement Lefebvre <root@linuxmint.com>  Tue, 19 May 2015 17:50:50 +0200
+>>>>>>> upstream/master
 
 cinnamon (2.5.0) unstable; urgency=medium
 
