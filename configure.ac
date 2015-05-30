@@ -1,5 +1,5 @@
 AC_PREREQ(2.63)
-AC_INIT([cinnamon],[2.6.2],[https://github.com/linuxmint/Cinnamon/issues],[cinnamon])
+AC_INIT([cinnamon],[2.6.5],[https://github.com/linuxmint/Cinnamon/issues],[cinnamon])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([src/cinnamon-global.c])
@@ -237,6 +237,8 @@ AC_CONFIG_FILES([
   docs/reference/cinnamon/Makefile
   docs/reference/cinnamon/cinnamon-docs.sgml
   docs/reference/cinnamon-js/Makefile
+  docs/reference/cinnamon-tutorials/Makefile
+  docs/reference/cinnamon-tutorials/cinnamon-tutorials-docs.sgml
   docs/reference/st/Makefile
   docs/reference/st/cinnamon-st-docs.sgml
   js/Makefile

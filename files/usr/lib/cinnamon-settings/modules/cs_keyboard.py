@@ -86,8 +86,8 @@ KEYBINDINGS = [
     [_("Toggle showing window on all workspaces"), MUFFIN_KEYBINDINGS_SCHEMA, "toggle-on-all-workspaces", "windows"],
     [_("Increase opacity"), MUFFIN_KEYBINDINGS_SCHEMA, "increase-opacity", "windows"],
     [_("Decrease opacity"), MUFFIN_KEYBINDINGS_SCHEMA, "decrease-opacity", "windows"],
-    [_("Maximize vertically"), MUFFIN_KEYBINDINGS_SCHEMA, "maximize-vertically", "windows"],
-    [_("Maximize horizontally"), MUFFIN_KEYBINDINGS_SCHEMA, "maximize-horizontally", "windows"],
+    [_("Toggle vertical maximization"), MUFFIN_KEYBINDINGS_SCHEMA, "maximize-vertically", "windows"],
+    [_("Toggle horizontal maximization"), MUFFIN_KEYBINDINGS_SCHEMA, "maximize-horizontally", "windows"],
     # Windows - Positioning
     [_("Resize window"), MUFFIN_KEYBINDINGS_SCHEMA, "begin-resize", "win-position"],
     [_("Move window"), MUFFIN_KEYBINDINGS_SCHEMA, "begin-move", "win-position"],
@@ -152,6 +152,7 @@ KEYBINDINGS = [
     [_("Lock screen"), MEDIA_KEYS_SCHEMA, "screensaver", "system"],
     [_("Suspend"), MEDIA_KEYS_SCHEMA, "suspend", "system"],
     [_("Hibernate"), MEDIA_KEYS_SCHEMA, "hibernate", "system"],
+    [_("Restart Cinnamon"), MEDIA_KEYS_SCHEMA, "restart-cinnamon", "system"],
     # System - Screenshots
     [_("Take a screenshot of an area"), MEDIA_KEYS_SCHEMA, "area-screenshot", "sys-screen"],
     [_("Copy a screenshot of an area to clipboard"), MEDIA_KEYS_SCHEMA, "area-screenshot-clip", "sys-screen"],
